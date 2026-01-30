@@ -1,0 +1,778 @@
+{
+  "account_heads": [
+    {
+      "code": "1101",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Retail (Wix)",
+      "sub_sub_head": "Online Cert - Basic",
+      "segment_tag": "Retail",
+      "usual_narration": "Wix Ord: [ID] - Basic Level",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1102",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Retail (Wix)",
+      "sub_sub_head": "Online Cert - Advanced",
+      "segment_tag": "Retail",
+      "usual_narration": "Wix Ord: [ID] - Advanced Level Training",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1103",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Retail (Wix)",
+      "sub_sub_head": "Masterclass",
+      "segment_tag": "Retail",
+      "usual_narration": "Wix Ord: [ID] - Special Webinar Access",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1201",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Franchise-Kenya",
+      "sub_sub_head": "Joining Fee",
+      "segment_tag": "Kenya",
+      "usual_narration": "One-time setup fee: Kenya Partner",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1202",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Franchise-Kenya",
+      "sub_sub_head": "Royalty Income",
+      "segment_tag": "Kenya",
+      "usual_narration": "Monthly Royalty share: Kenya Operations",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1203",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Franchise-Kenya",
+      "sub_sub_head": "Material Sales",
+      "segment_tag": "Kenya",
+      "usual_narration": "Dispatch of Practical Training Kits (Kenya)",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1301",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Franchise-India",
+      "sub_sub_head": "Joining Fee",
+      "segment_tag": "India",
+      "usual_narration": "One-time setup fee: India Partner",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1302",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Franchise-India",
+      "sub_sub_head": "Royalty Income",
+      "segment_tag": "India",
+      "usual_narration": "Monthly Royalty share: India Operations",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "1401",
+      "voucher_type": "Credit",
+      "main_head": "Sales Income",
+      "sub_head": "Corporate",
+      "sub_sub_head": "B2B Training",
+      "segment_tag": "Corporate",
+      "usual_narration": "Bulk Employee Certification - [Client Name]",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "2101",
+      "voucher_type": "Credit",
+      "main_head": "Other Income",
+      "sub_head": "Interest",
+      "sub_sub_head": "Bank Interest",
+      "segment_tag": "",
+      "usual_narration": "Bank Interest Savings/FD Interest Credit",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "2201",
+      "voucher_type": "Credit",
+      "main_head": "Other Income",
+      "sub_head": "Forex",
+      "sub_sub_head": "Realized Gain",
+      "segment_tag": "",
+      "usual_narration": "Forex Gain on USD/KES conversion",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "3101",
+      "voucher_type": "Credit",
+      "main_head": "Loans",
+      "sub_head": "Secured",
+      "sub_sub_head": "HDFC OD",
+      "segment_tag": "",
+      "usual_narration": "Withdrawal from Working Capital Limit",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "3201",
+      "voucher_type": "Credit",
+      "main_head": "Loans",
+      "sub_head": "Director Loan",
+      "sub_sub_head": null,
+      "segment_tag": "POOL",
+      "usual_narration": "Funds introduced by Subudhi",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "4101",
+      "voucher_type": "Credit",
+      "main_head": "Asset Sale",
+      "sub_head": "Fixed Assets",
+      "sub_sub_head": "IT Equipment",
+      "segment_tag": "",
+      "usual_narration": "Sale of depreciated Laptops/PCs",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "5101",
+      "voucher_type": "Debit",
+      "main_head": "Direct Cost",
+      "sub_head": "Cert. Fees",
+      "sub_sub_head": "Partner Board Fee",
+      "segment_tag": "POOL",
+      "usual_narration": "Payout to Certifying Body for Boards",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "5102",
+      "voucher_type": "Debit",
+      "main_head": "Direct Cost",
+      "sub_head": "Material",
+      "sub_sub_head": "Training Kits",
+      "segment_tag": "",
+      "usual_narration": "Purchase of physical components for kits",
+      "is_active": true,
+      "requires_segment_selection": true
+    },
+    {
+      "code": "5201",
+      "voucher_type": "Debit",
+      "main_head": "Direct Cost",
+      "sub_head": "Platform",
+      "sub_sub_head": "Wix Subscription",
+      "segment_tag": "POOL",
+      "usual_narration": "Monthly Wix Store/Platform charges",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "5202",
+      "voucher_type": "Debit",
+      "main_head": "Direct Cost",
+      "sub_head": "Platform",
+      "sub_sub_head": "LMS Hosting",
+      "segment_tag": "POOL",
+      "usual_narration": "Server/Hosting for Online Learning Portal",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "6101",
+      "voucher_type": "Debit",
+      "main_head": "Admin Exp",
+      "sub_head": "Rent",
+      "sub_sub_head": "Office Rent",
+      "segment_tag": "POOL",
+      "usual_narration": "Monthly Rent for Office Premises",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "6102",
+      "voucher_type": "Debit",
+      "main_head": "Admin Exp",
+      "sub_head": "Utilities",
+      "sub_sub_head": "Electricity/Web",
+      "segment_tag": "POOL",
+      "usual_narration": "Monthly Electricity & Internet bills",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "6201",
+      "voucher_type": "Debit",
+      "main_head": "Personnel",
+      "sub_head": "Salary",
+      "sub_sub_head": "Staff Salary",
+      "segment_tag": "POOL",
+      "usual_narration": "Monthly Salary Disbursement",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "6301",
+      "voucher_type": "Debit",
+      "main_head": "Travel",
+      "sub_head": "International",
+      "sub_sub_head": "Kenya Audit",
+      "segment_tag": "POOL",
+      "usual_narration": "Airfare/Stay for Kenya Partner Audit",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "7101",
+      "voucher_type": "Debit",
+      "main_head": "Marketing",
+      "sub_head": "Digital Ads",
+      "sub_sub_head": "Facebook/Google",
+      "segment_tag": "POOL",
+      "usual_narration": "Ad spend for Online Sales Campaigns",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "7201",
+      "voucher_type": "Debit",
+      "main_head": "Marketing",
+      "sub_head": "Collateral",
+      "sub_sub_head": "Brand Material",
+      "segment_tag": "",
+      "usual_narration": "Printing of Brochures and Certificates",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "8101",
+      "voucher_type": "Debit",
+      "main_head": "Finance",
+      "sub_head": "Bank Charges",
+      "sub_sub_head": "Processing Fee",
+      "segment_tag": "",
+      "usual_narration": "Bank Charges for Wire/Forex Transfer",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "8201",
+      "voucher_type": "Debit",
+      "main_head": "Repayment",
+      "sub_head": "Loan Principal",
+      "sub_sub_head": "Loan EMI",
+      "segment_tag": "",
+      "usual_narration": "Monthly Principal Repayment to Bank",
+      "is_active": true,
+      "requires_segment_selection": false
+    },
+    {
+      "code": "8301",
+      "voucher_type": "Debit",
+      "main_head": "Capital Exp",
+      "sub_head": "Assets",
+      "sub_sub_head": "IT Hardware",
+      "segment_tag": "",
+      "usual_narration": "Purchase of New Servers/Workstations",
+      "is_active": true,
+      "requires_segment_selection": false
+    }
+  ],
+  "narrations": [
+    {
+      "narration_id": "NARR_0001",
+      "account_code": "1101",
+      "template": "Wix Ord: [ID] - Basic Level",
+      "has_placeholder": true,
+      "placeholder_label": "Order/Reference ID",
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0002",
+      "account_code": "1101",
+      "template": "Online sale - Basic certification",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0003",
+      "account_code": "1102",
+      "template": "Wix Ord: [ID] - Advanced Level Training",
+      "has_placeholder": true,
+      "placeholder_label": "Order/Reference ID",
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0004",
+      "account_code": "1102",
+      "template": "Online sale - Advanced certification",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0005",
+      "account_code": "1103",
+      "template": "Wix Ord: [ID] - Special Webinar Access",
+      "has_placeholder": true,
+      "placeholder_label": "Order/Reference ID",
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0006",
+      "account_code": "1103",
+      "template": "Masterclass enrollment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0007",
+      "account_code": "1201",
+      "template": "One-time setup fee: Kenya Partner",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0008",
+      "account_code": "1201",
+      "template": "Kenya franchise joining fee received",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0009",
+      "account_code": "1202",
+      "template": "Monthly Royalty share: Kenya Operations",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0010",
+      "account_code": "1202",
+      "template": "Kenya monthly royalty payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0011",
+      "account_code": "1203",
+      "template": "Dispatch of Practical Training Kits (Kenya)",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0012",
+      "account_code": "1203",
+      "template": "Kenya training materials sale",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0013",
+      "account_code": "1301",
+      "template": "One-time setup fee: India Partner",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0014",
+      "account_code": "1301",
+      "template": "India franchise joining fee received",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0015",
+      "account_code": "1302",
+      "template": "Monthly Royalty share: India Operations",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0016",
+      "account_code": "1302",
+      "template": "India monthly royalty payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0017",
+      "account_code": "1401",
+      "template": "Bulk Employee Certification - [Client Name]",
+      "has_placeholder": true,
+      "placeholder_label": "Client Name",
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0018",
+      "account_code": "1401",
+      "template": "Corporate training sale",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0019",
+      "account_code": "2101",
+      "template": "Bank Interest Savings/FD Interest Credit",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0020",
+      "account_code": "2101",
+      "template": "Interest income received",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0021",
+      "account_code": "2201",
+      "template": "Forex Gain on USD/KES conversion",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0022",
+      "account_code": "2201",
+      "template": "Foreign exchange gain",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0023",
+      "account_code": "3101",
+      "template": "Withdrawal from Working Capital Limit",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0024",
+      "account_code": "3101",
+      "template": "OD facility utilized",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0025",
+      "account_code": "3201",
+      "template": "Funds introduced by Subudhi",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0026",
+      "account_code": "3201",
+      "template": "Director loan received",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0027",
+      "account_code": "4101",
+      "template": "Sale of depreciated Laptops/PCs",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0028",
+      "account_code": "4101",
+      "template": "Asset disposal",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0029",
+      "account_code": "5101",
+      "template": "Payout to Certifying Body for Boards",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0030",
+      "account_code": "5101",
+      "template": "Certification fees payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0031",
+      "account_code": "5102",
+      "template": "Purchase of physical components for kits",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0032",
+      "account_code": "5102",
+      "template": "Training materials purchase",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0033",
+      "account_code": "5201",
+      "template": "Monthly Wix Store/Platform charges",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0034",
+      "account_code": "5201",
+      "template": "Platform subscription payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0035",
+      "account_code": "5202",
+      "template": "Server/Hosting for Online Learning Portal",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0036",
+      "account_code": "5202",
+      "template": "LMS hosting charges",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0037",
+      "account_code": "6101",
+      "template": "Monthly Rent for Office Premises",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0038",
+      "account_code": "6101",
+      "template": "Office rent payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0039",
+      "account_code": "6102",
+      "template": "Monthly Electricity & Internet bills",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0040",
+      "account_code": "6102",
+      "template": "Utility bills payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0041",
+      "account_code": "6201",
+      "template": "Monthly Salary Disbursement",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0042",
+      "account_code": "6201",
+      "template": "Staff salaries payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0043",
+      "account_code": "6301",
+      "template": "Airfare/Stay for Kenya Partner Audit",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0044",
+      "account_code": "6301",
+      "template": "Travel expense - Kenya audit",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0045",
+      "account_code": "7101",
+      "template": "Ad spend for Online Sales Campaigns",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0046",
+      "account_code": "7101",
+      "template": "Digital marketing spend",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0047",
+      "account_code": "7201",
+      "template": "Printing of Brochures and Certificates",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0048",
+      "account_code": "7201",
+      "template": "Marketing collateral purchase",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0049",
+      "account_code": "8101",
+      "template": "Bank Charges for Wire/Forex Transfer",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0050",
+      "account_code": "8101",
+      "template": "Bank charges payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0051",
+      "account_code": "8201",
+      "template": "Monthly Principal Repayment to Bank",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0052",
+      "account_code": "8201",
+      "template": "Loan EMI payment",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0053",
+      "account_code": "8301",
+      "template": "Purchase of New Servers/Workstations",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    },
+    {
+      "narration_id": "NARR_0054",
+      "account_code": "8301",
+      "template": "IT equipment purchase",
+      "has_placeholder": false,
+      "placeholder_label": null,
+      "is_active": true
+    }
+  ],
+  "segments": [
+    {
+      "segment_id": "RETAIL",
+      "name": "Retail (Wix)",
+      "description": "Direct online sales via Wix platform",
+      "is_active": true,
+      "allocation_percentage": 0.0
+    },
+    {
+      "segment_id": "KENYA",
+      "name": "Franchise-Kenya",
+      "description": "Kenya franchise operations",
+      "is_active": true,
+      "allocation_percentage": 0.0
+    },
+    {
+      "segment_id": "INDIA",
+      "name": "Franchise-India",
+      "description": "India franchise operations",
+      "is_active": true,
+      "allocation_percentage": 0.0
+    },
+    {
+      "segment_id": "CORPORATE",
+      "name": "Corporate",
+      "description": "B2B corporate training sales",
+      "is_active": true,
+      "allocation_percentage": 0.0
+    },
+    {
+      "segment_id": "POOL",
+      "name": "POOL (Shared)",
+      "description": "Shared costs for pro-rata allocation",
+      "is_active": true,
+      "allocation_percentage": 0.0
+    }
+  ],
+  "settings": {
+    "is_frozen": true,
+    "admin_password": "Subudhi123",
+    "last_modified": "2026-01-07T11:18:27.377191",
+    "modified_by": "System"
+  }
+}
