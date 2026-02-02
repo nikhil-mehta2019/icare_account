@@ -57,11 +57,13 @@ class BulkImportTab(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        # Remove border from scroll area for cleaner look
+        scroll.setStyleSheet("QScrollArea { border: none; }")
         
         scroll_content = QWidget()
         layout = QVBoxLayout(scroll_content)
-        layout.setSpacing(10)
-        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(6)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # Header
         header = self._create_header()
@@ -96,13 +98,29 @@ class BulkImportTab(QWidget):
         layout.addWidget(preview_section)
         
         # Action Buttons
-        buttons = self._create_buttons()
-        layout.addLayout(buttons)
+        # buttons = self._create_buttons()
+        # layout.addLayout(buttons)
         
         layout.addStretch()
         
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
+
+        # === MOVED BUTTONS OUTSIDE SCROLL (FIXED BOTTOM BAR) ===
+        button_container = QWidget()
+        button_container.setStyleSheet(f"""
+            QWidget {{
+                background-color: {Styles.BG_PRIMARY}; 
+                border-top: 1px solid {Styles.BORDER_LIGHT};
+            }}
+        """)
+        # We reuse _create_buttons but need to set the layout on the container
+        btn_layout = self._create_buttons()
+        # Adjust margins for the fixed bar
+        btn_layout.setContentsMargins(15, 10, 15, 10) 
+        button_container.setLayout(btn_layout)
+        
+        main_layout.addWidget(button_container)
     
     def _create_header(self) -> QFrame:
         """Create the header section."""
@@ -609,7 +627,7 @@ class BulkImportTab(QWidget):
         """
         group = QGroupBox("STEP 5: PREVIEW & VALIDATION")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(10, 14, 10, 10)
+        layout.setContentsMargins(10, 8, 10, 10)
         
         # Preview Info
         self.preview_info = QLabel("Upload a file to see preview")
@@ -632,8 +650,8 @@ class BulkImportTab(QWidget):
         
         # Preview Table - Functional grid with validation
         self.preview_table = QTableWidget()
-        self.preview_table.setMinimumHeight(220)
-        self.preview_table.setMaximumHeight(300)
+        self.preview_table.setMinimumHeight(150)
+        self.preview_table.setMaximumHeight(250)
         self.preview_table.setAlternatingRowColors(True)
         self.preview_table.horizontalHeader().setStretchLastSection(True)
         self.preview_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -689,6 +707,24 @@ class BulkImportTab(QWidget):
         """)
         self.clear_btn.setFixedHeight(38)
         layout.addWidget(self.clear_btn)
+        
+        # === NEW BUTTON ADDED HERE ===
+        self.template_btn = QPushButton("Download Template")
+        self.template_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.INFO};
+                color: {Styles.TEXT_LIGHT};
+                border: none;
+                border-radius: 4px;
+                padding: 10px 15px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background-color: #1976D2; }}
+        """)
+        self.template_btn.setFixedHeight(38)
+        self.template_btn.clicked.connect(self.download_template)
+        layout.addWidget(self.template_btn)
+        # =============================
         
         layout.addStretch()
         
@@ -1424,3 +1460,28 @@ class BulkImportTab(QWidget):
         
         # Update UI state
         self._update_ui_state()
+
+    def download_template(self):
+        """Generate and save CSV template based on Voucher Type."""
+        if not self._selected_voucher_type:
+             QMessageBox.warning(self, "Selection Required", "Please select Credit or Debit first.")
+             return
+
+        if self._selected_voucher_type == "Credit":
+            headers = ["Date", "Invoice No", "Customer Name", "Place of Supply", "Business Segment", "Amount"]
+            filename = "Credit_Import_Template.csv"
+        else:
+            # Debit Template
+            headers = ["Date", "Vendor Name", "Place of Supply", "Business Segment", "Expense Details", "TDS Category", "Base Amount"]
+            filename = "Debit_Import_Template.csv"
+
+        path, _ = QFileDialog.getSaveFileName(self, "Save Template", filename, "CSV Files (*.csv)")
+        if path:
+            try:
+                import csv
+                with open(path, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(headers)
+                QMessageBox.information(self, "Saved", f"Template saved to {path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save file: {e}")

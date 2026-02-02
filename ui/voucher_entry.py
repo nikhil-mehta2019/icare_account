@@ -38,7 +38,7 @@ class StepHeader(QFrame):
     def _setup_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         
         # Step number circle
         self.num_label = QLabel(str(self.step_num))
@@ -144,16 +144,18 @@ class VoucherEntryTab(QWidget):
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        
+        main_layout.setSpacing(0)  # No gap between scroll and bottom bar
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
         
         scroll_content = QWidget()
         layout = QVBoxLayout(scroll_content)
-        layout.setSpacing(8)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # Title Header
         header = self._create_header()
@@ -162,7 +164,7 @@ class VoucherEntryTab(QWidget):
         # Step Headers
         self.step_headers = []
         steps_container = QHBoxLayout()
-        steps_container.setSpacing(8)
+        steps_container.setSpacing(6)
         
         step_titles = [
             "Method & Head",
@@ -195,11 +197,25 @@ class VoucherEntryTab(QWidget):
         layout.addWidget(self.step_stack, 1)
         
         # Navigation buttons
-        nav_layout = self._create_navigation()
-        layout.addLayout(nav_layout)
+        # nav_layout = self._create_navigation()
+        # layout.addLayout(nav_layout)
         
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
+
+        # === FIXED BOTTOM NAVIGATION BAR ===
+        nav_container = QWidget()
+        nav_container.setStyleSheet(f"""
+            QWidget {{
+                background-color: {Styles.BG_PRIMARY}; 
+                border-top: 1px solid {Styles.BORDER_LIGHT};
+            }}
+        """)
+        nav_layout = self._create_navigation()
+        nav_layout.setContentsMargins(15, 10, 15, 10) # Fixed padding
+        nav_container.setLayout(nav_layout)
+        
+        main_layout.addWidget(nav_container)
     
     def _create_header(self) -> QFrame:
         header = QFrame()
@@ -239,7 +255,7 @@ class VoucherEntryTab(QWidget):
         self.type_group = QButtonGroup(self)
         
         self.credit_radio = QRadioButton("CREDIT")
-        self.credit_radio.setChecked(True)
+        self.credit_radio.setChecked(False)
         self.credit_radio.setStyleSheet(f"color: {Styles.TEXT_LIGHT}; font-weight: bold; font-size: 12px;")
         self.type_group.addButton(self.credit_radio, 0)
         type_layout.addWidget(self.credit_radio)
@@ -257,13 +273,13 @@ class VoucherEntryTab(QWidget):
         """Step 1: Method & Head Selection."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
         # Recording Method (fixed to Manual)
         method_group = QGroupBox("Recording Method")
         method_layout = QHBoxLayout(method_group)
-        method_layout.setContentsMargins(12, 16, 12, 12)
+        method_layout.setContentsMargins(10, 6, 10, 6)
         
         self.method_label = QLabel("Manual Entry")
         self.method_label.setStyleSheet(f"""
@@ -282,7 +298,7 @@ class VoucherEntryTab(QWidget):
         # Tally Accounting Head
         head_group = QGroupBox("Tally Accounting Head *")
         head_layout = QVBoxLayout(head_group)
-        head_layout.setContentsMargins(12, 16, 12, 12)
+        head_layout.setContentsMargins(10, 6, 10, 6)
         head_layout.setSpacing(8)
         
         self.tally_head_combo = QComboBox()
@@ -308,12 +324,12 @@ class VoucherEntryTab(QWidget):
         # Date Fields
         date_group = QGroupBox("Voucher Dates")
         date_layout = QVBoxLayout(date_group)
-        date_layout.setContentsMargins(12, 16, 12, 12)
+        date_layout.setContentsMargins(10, 6, 10, 6)
         date_layout.setSpacing(10)
         
         # Voucher Date
         vdate_row = QHBoxLayout()
-        vdate_row.setSpacing(12)
+        vdate_row.setSpacing(8)
         
         vdate_label = QLabel("Voucher Date:")
         vdate_label.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
@@ -338,7 +354,7 @@ class VoucherEntryTab(QWidget):
         
         # Period dates
         period_row = QHBoxLayout()
-        period_row.setSpacing(12)
+        period_row.setSpacing(8)
         
         from_label = QLabel("From Date:")
         from_label.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
@@ -389,13 +405,13 @@ class VoucherEntryTab(QWidget):
         """Step 2: Voucher Settings & Tax Configuration."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
         # Settings Section
         settings_group = QGroupBox("Voucher Settings")
         settings_layout = QFormLayout(settings_group)
-        settings_layout.setContentsMargins(12, 16, 12, 12)
+        settings_layout.setContentsMargins(10, 6, 10, 6)
         settings_layout.setSpacing(10)
         
         # Business Segment (NEW - Req 4)
@@ -447,8 +463,8 @@ class VoucherEntryTab(QWidget):
         # Tax Configuration Section
         tax_group = QGroupBox("Tax Configuration")
         tax_layout = QVBoxLayout(tax_group)
-        tax_layout.setContentsMargins(12, 16, 12, 12)
-        tax_layout.setSpacing(12)
+        tax_layout.setContentsMargins(10, 6, 10, 6)
+        tax_layout.setSpacing(8)
         
         # Point of Supply
         pos_row = QHBoxLayout()
@@ -615,14 +631,14 @@ class VoucherEntryTab(QWidget):
         """
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
         # === VENDOR SECTION (DEBIT ONLY) ===
         self.vendor_group = QGroupBox("Vendor / Party Details")
         vendor_layout = QFormLayout(self.vendor_group)
-        vendor_layout.setContentsMargins(12, 16, 12, 12)
-        vendor_layout.setSpacing(10)
+        vendor_layout.setContentsMargins(10, 6, 10, 6)
+        vendor_layout.setSpacing(8)
         
         self.vendor_name_input = QLineEdit()
         self.vendor_name_input.setMinimumHeight(32)
@@ -635,8 +651,8 @@ class VoucherEntryTab(QWidget):
         # === AMOUNT SECTION ===
         amount_group = QGroupBox("Financial Details")
         amount_layout = QVBoxLayout(amount_group)
-        amount_layout.setContentsMargins(12, 16, 12, 12)
-        amount_layout.setSpacing(12)
+        amount_layout.setContentsMargins(10, 6, 10, 6)
+        amount_layout.setSpacing(8)
         
         # Expense Details Field (DEBIT ONLY - Part 1 Req 2)
         self.expense_details_row = QWidget()
@@ -672,7 +688,7 @@ class VoucherEntryTab(QWidget):
         self.amount_input.setPrefix("₹ ")
         self.amount_input.setGroupSeparatorShown(True)
         self.amount_input.setMinimumWidth(180)
-        self.amount_input.setMinimumHeight(40)
+        self.amount_input.setMinimumHeight(38)
         self.amount_input.setStyleSheet("""
             font-size: 16px;
             font-weight: bold;
@@ -720,7 +736,7 @@ class VoucherEntryTab(QWidget):
             }}
         """)
         breakup_layout = QVBoxLayout(self.tax_breakup_frame)
-        breakup_layout.setSpacing(6)
+        breakup_layout.setSpacing(4)
         
         breakup_title = QLabel("Tax Breakup (Auto-Calculated)")
         breakup_title.setStyleSheet(f"font-weight: bold; font-size: 12px; color: {Styles.SECONDARY};")
@@ -774,7 +790,7 @@ class VoucherEntryTab(QWidget):
         # Narration Section
         narr_group = QGroupBox("Narration")
         narr_layout = QVBoxLayout(narr_group)
-        narr_layout.setContentsMargins(12, 16, 12, 12)
+        narr_layout.setContentsMargins(10, 6, 10, 6)
         narr_layout.setSpacing(8)
         
         # Auto-generate button (DEBIT ONLY - Part 1 Req 3)
@@ -804,7 +820,7 @@ class VoucherEntryTab(QWidget):
         narr_layout.addWidget(self.auto_narration_row)
         
         self.narration_edit = QTextEdit()
-        self.narration_edit.setMaximumHeight(80)
+        self.narration_edit.setMaximumHeight(60)
         self.narration_edit.setPlaceholderText("Enter transaction description / narration...")
         self.narration_edit.setStyleSheet(f"""
             font-size: 13px;
@@ -823,13 +839,13 @@ class VoucherEntryTab(QWidget):
         """Step 4: Confirm & Print Preview."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
         # Preview Section
         preview_group = QGroupBox("Voucher Preview")
         preview_layout = QVBoxLayout(preview_group)
-        preview_layout.setContentsMargins(12, 16, 12, 12)
+        preview_layout.setContentsMargins(10, 6, 10, 6)
         preview_layout.setSpacing(10)
         
         # Header Info
@@ -915,7 +931,7 @@ class VoucherEntryTab(QWidget):
         
         # Confirmation buttons
         confirm_row = QHBoxLayout()
-        confirm_row.setSpacing(12)
+        confirm_row.setSpacing(8)
         
         confirm_row.addStretch()
         
@@ -959,7 +975,7 @@ class VoucherEntryTab(QWidget):
     def _create_navigation(self) -> QHBoxLayout:
         """Create navigation buttons."""
         layout = QHBoxLayout()
-        layout.setSpacing(12)
+        layout.setSpacing(8)
         layout.setContentsMargins(0, 8, 0, 0)
         
         self.reset_btn = QPushButton("Reset All")
