@@ -13,7 +13,12 @@
       "status": "Pending Review",
       "created_at": "2026-01-14T15:48:42.780227",
       "created_by": "System",
-      "source": "Manual"
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
     },
     {
       "voucher_id": "75f54a06-db09-4370-acc1-b221df48a830",
@@ -28,7 +33,12 @@
       "status": "Approved",
       "created_at": "2026-01-14T15:48:42.780234",
       "created_by": "System",
-      "source": "Manual"
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
     },
     {
       "voucher_id": "1ef65adb-7291-45a9-b6f0-e309f0da2cc6",
@@ -43,7 +53,12 @@
       "status": "Approved",
       "created_at": "2026-01-14T15:48:42.780238",
       "created_by": "System",
-      "source": "Manual"
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
     },
     {
       "voucher_id": "48f2ba69-e13b-4981-bbf2-bc808e3ce60b",
@@ -58,7 +73,12 @@
       "status": "Approved",
       "created_at": "2026-01-14T15:48:42.780247",
       "created_by": "System",
-      "source": "Manual"
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
     },
     {
       "voucher_id": "eb8d3d74-e433-4b63-a648-e98d89858bab",
@@ -73,8 +93,33 @@
       "status": "Approved",
       "created_at": "2026-01-14T15:48:42.780251",
       "created_by": "System",
-      "source": "Manual"
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "c223ac65-b007-4bbc-9c7d-d4e8d80672d5",
+      "date": "2026-02-02T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2D1",
+      "account_name": "",
+      "amount": 1204.78,
+      "segment": "",
+      "narration": "monthly from Vendor B Inv:2312 for period 04-Dec-2025 to 02-Feb-2026",
+      "reference_id": "DB-303-202602-0001",
+      "status": "Pending Review",
+      "created_at": "2026-02-02T18:19:19.795259",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "Vendor B",
+      "invoice_no": "2312",
+      "invoice_date": "2026-02-02",
+      "from_date": null,
+      "to_date": null
     }
   ],
-  "last_modified": "2026-01-14T15:48:42.783401"
+  "last_modified": "2026-02-02T18:19:19.795259"
 }

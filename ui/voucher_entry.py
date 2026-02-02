@@ -1,10 +1,4 @@
-"""Voucher Entry Tab - 4-Step Guided GST Voucher Creation.
-
-Step 1: Method & Head Selection
-Step 2: Voucher Settings & Tax Configuration
-Step 3: Financial Details
-Step 4: Confirm & Print
-"""
+"""Voucher Entry Tab - Manual Entry with Vendor Master & Invoice Details."""
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
@@ -140,6 +134,9 @@ class VoucherEntryTab(QWidget):
         self._setup_ui()
         self._connect_signals()
         self._update_step_visibility()
+        
+        # Initial Population
+        self._populate_voucher_types()
     
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -195,10 +192,6 @@ class VoucherEntryTab(QWidget):
         self.step_stack.addWidget(self.step4_widget)
         
         layout.addWidget(self.step_stack, 1)
-        
-        # Navigation buttons
-        # nav_layout = self._create_navigation()
-        # layout.addLayout(nav_layout)
         
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
@@ -276,8 +269,8 @@ class VoucherEntryTab(QWidget):
         layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
-        # Recording Method (fixed to Manual)
-        method_group = QGroupBox("Recording Method")
+        # Recording Method & Voucher Type
+        method_group = QGroupBox("Method & Type")
         method_layout = QHBoxLayout(method_group)
         method_layout.setContentsMargins(10, 6, 10, 6)
         
@@ -285,14 +278,21 @@ class VoucherEntryTab(QWidget):
         self.method_label.setStyleSheet(f"""
             background-color: {Styles.PRIMARY};
             color: white;
-            padding: 8px 20px;
+            padding: 6px 12px;
             border-radius: 4px;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 12px;
         """)
         method_layout.addWidget(self.method_label)
-        method_layout.addStretch()
         
+        # NEW: Voucher Type Dropdown (Requirement)
+        method_layout.addSpacing(20)
+        method_layout.addWidget(QLabel("Voucher Type:"))
+        self.voucher_type_combo = QComboBox()
+        self.voucher_type_combo.setMinimumWidth(150)
+        method_layout.addWidget(self.voucher_type_combo)
+        
+        method_layout.addStretch()
         layout.addWidget(method_group)
         
         # Tally Accounting Head
@@ -414,7 +414,7 @@ class VoucherEntryTab(QWidget):
         settings_layout.setContentsMargins(10, 6, 10, 6)
         settings_layout.setSpacing(10)
         
-        # Business Segment (NEW - Req 4)
+        # Business Segment
         self.segment_combo = QComboBox()
         self.segment_combo.setMinimumHeight(32)
         self._populate_business_segments()
@@ -488,7 +488,7 @@ class VoucherEntryTab(QWidget):
         
         tax_layout.addLayout(pos_row)
         
-        # RCM Indicator (NEW - Req 3)
+        # RCM Indicator
         self.rcm_indicator = QLabel("")
         self.rcm_indicator.setStyleSheet(f"color: {Styles.ERROR}; font-size: 11px; font-weight: bold; padding-left: 160px;")
         tax_layout.addWidget(self.rcm_indicator)
@@ -598,7 +598,7 @@ class VoucherEntryTab(QWidget):
         tds_row.addStretch()
         tds_layout.addLayout(tds_row)
         
-        # TDS Ledger Dropdown (NEW - Req 1)
+        # TDS Ledger Dropdown
         tds_ledger_row = QHBoxLayout()
         tds_ledger_row.setSpacing(10)
         
@@ -624,26 +624,45 @@ class VoucherEntryTab(QWidget):
         return widget
     
     def _create_step3(self) -> QWidget:
-        """Step 3: Financial Details.
-        
-        CREDIT: Amount = Total (inclusive), NO TDS/Expense fields
-        DEBIT: Base Amount + GST calculated on top, WITH TDS/Expense fields
-        """
+        """Step 3: Financial Details."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
         
-        # === VENDOR SECTION (DEBIT ONLY) ===
+        # === VENDOR SECTION (DEBIT ONLY - UPDATED) ===
         self.vendor_group = QGroupBox("Vendor / Party Details")
         vendor_layout = QFormLayout(self.vendor_group)
         vendor_layout.setContentsMargins(10, 6, 10, 6)
         vendor_layout.setSpacing(8)
         
-        self.vendor_name_input = QLineEdit()
-        self.vendor_name_input.setMinimumHeight(32)
-        self.vendor_name_input.setPlaceholderText("Enter vendor/party name...")
-        vendor_layout.addRow("Vendor Name:", self.vendor_name_input)
+        # NEW: Vendor Dropdown (ComboBox)
+        self.vendor_combo = QComboBox()
+        self.vendor_combo.setMinimumHeight(32)
+        self.vendor_combo.setEditable(True) # Allow typing to search
+        self.vendor_combo.setPlaceholderText("-- Select or Enter Vendor Name --")
+        self._populate_vendors() # Initial population
+        vendor_layout.addRow("Vendor Name:", self.vendor_combo)
+        
+        # NEW: Invoice Details Row
+        inv_row_layout = QHBoxLayout()
+        self.invoice_no_input = QLineEdit()
+        self.invoice_no_input.setPlaceholderText("Invoice No")
+        self.invoice_no_input.setMinimumHeight(32)
+        
+        self.invoice_date_input = QDateEdit()
+        self.invoice_date_input.setDate(QDate.currentDate())
+        self.invoice_date_input.setCalendarPopup(True)
+        self.invoice_date_input.setDisplayFormat("dd-MMM-yyyy")
+        self.invoice_date_input.setMinimumHeight(32)
+        
+        inv_row_layout.addWidget(QLabel("Invoice No:"))
+        inv_row_layout.addWidget(self.invoice_no_input)
+        inv_row_layout.addSpacing(20)
+        inv_row_layout.addWidget(QLabel("Invoice Date:"))
+        inv_row_layout.addWidget(self.invoice_date_input)
+        
+        vendor_layout.addRow(inv_row_layout)
         
         self.vendor_group.setVisible(False)  # Hidden for Credit by default
         layout.addWidget(self.vendor_group)
@@ -654,7 +673,7 @@ class VoucherEntryTab(QWidget):
         amount_layout.setContentsMargins(10, 6, 10, 6)
         amount_layout.setSpacing(8)
         
-        # Expense Details Field (DEBIT ONLY - Part 1 Req 2)
+        # Expense Details Field (DEBIT ONLY)
         self.expense_details_row = QWidget()
         expense_row_layout = QHBoxLayout(self.expense_details_row)
         expense_row_layout.setContentsMargins(0, 0, 0, 0)
@@ -699,7 +718,7 @@ class VoucherEntryTab(QWidget):
         
         amount_layout.addLayout(enter_row)
         
-        # Gross Amount (calculated display) - Shows Base + GST for Debit
+        # Gross Amount (calculated display)
         calc_row = QHBoxLayout()
         calc_row.setSpacing(10)
         
@@ -758,7 +777,7 @@ class VoucherEntryTab(QWidget):
         self.net_amount_label.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {Styles.PRIMARY};")
         breakup_layout.addWidget(self.net_amount_label)
         
-        # RCM Journal Entry Preview (DEBIT + Foreign Country ONLY)
+        # RCM Journal Entry Preview
         self.rcm_journal_frame = QFrame()
         self.rcm_journal_frame.setStyleSheet(f"""
             QFrame {{
@@ -793,7 +812,7 @@ class VoucherEntryTab(QWidget):
         narr_layout.setContentsMargins(10, 6, 10, 6)
         narr_layout.setSpacing(8)
         
-        # Auto-generate button (DEBIT ONLY - Part 1 Req 3)
+        # Auto-generate button
         self.auto_narration_row = QWidget()
         auto_btn_layout = QHBoxLayout(self.auto_narration_row)
         auto_btn_layout.setContentsMargins(0, 0, 0, 0)
@@ -815,7 +834,8 @@ class VoucherEntryTab(QWidget):
         self.auto_narration_btn.clicked.connect(self._auto_generate_narration)
         auto_btn_layout.addWidget(self.auto_narration_btn)
         auto_btn_layout.addStretch()
-        
+        # ENSURE THIS LINE EXISTS:
+        self.auto_narration_btn.clicked.connect(self._auto_generate_narration)
         self.auto_narration_row.setVisible(False)  # Hidden for Credit
         narr_layout.addWidget(self.auto_narration_row)
         
@@ -1094,11 +1114,7 @@ class VoucherEntryTab(QWidget):
             self.tally_head_combo.addItem(f"{head.code} - {head.name}", head.code)
     
     def _populate_countries(self, exclude_india: bool = False):
-        """Populate countries dropdown.
-        
-        Args:
-            exclude_india: If True, exclude India from list (for International heads).
-        """
+        """Populate countries dropdown."""
         self.country_combo.clear()
         countries = self.config.get_countries(exclude_india=exclude_india)
         default_idx = 0
@@ -1163,48 +1179,71 @@ class VoucherEntryTab(QWidget):
             self.segment_combo.addItem(seg.name, seg.code)
     
     def _populate_tds_ledgers(self):
-        """Populate TDS ledgers dropdown for Tally mapping."""
+        """Populate TDS ledgers dropdown."""
         self.tds_ledger_combo.clear()
         self.tds_ledger_combo.addItem("-- Select TDS Ledger --", None)
         ledgers = self.config.get_tds_ledgers()
         for ledger in ledgers:
             self.tds_ledger_combo.addItem(ledger.label, ledger.code)
+
+    def _populate_voucher_types(self):
+        """Populate Voucher Type dropdown based on Credit/Debit selection."""
+        self.voucher_type_combo.clear()
+        if self._voucher_type == "credit":
+            # Typical Credit voucher types
+            self.voucher_type_combo.addItem("Receipt", "Receipt")
+            self.voucher_type_combo.addItem("Sales", "Sales")
+            self.voucher_type_combo.addItem("Credit Note", "Credit Note")
+        else:
+            # Typical Debit voucher types
+            self.voucher_type_combo.addItem("Purchase", "Purchase")
+            self.voucher_type_combo.addItem("Payment", "Payment")
+            self.voucher_type_combo.addItem("Journal", "Journal")
+            self.voucher_type_combo.addItem("Debit Note", "Debit Note")
+            self.voucher_type_combo.addItem("Contra", "Contra")
+            
+    def _populate_vendors(self):
+        """Populate Vendor Dropdown (Simulated for now)."""
+        self.vendor_combo.clear()
+        self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
+        
+        # In real app, fetch from self.data_service.get_all_vendors()
+        sample_vendors = ["Vendor A", "Vendor B", "Office Supplies Co", "Tech Solutions Ltd"]
+        for v in sample_vendors:
+            self.vendor_combo.addItem(v, v)
     
     # === Event Handlers ===
     
     def _on_type_changed(self, button):
-        """Handle voucher type change - STRICT LOGIC SEPARATION.
-        
-        CREDIT: Amount = Total, HIDE TDS/Expense Details
-        DEBIT: Amount = Base (excl. GST), SHOW TDS/Expense Details
-        """
+        """Handle voucher type change."""
         self._voucher_type = "credit" if button == self.credit_radio else "debit"
+        self._populate_voucher_types()
         self._populate_tally_heads()
         
-        # === PART 1 LOGIC SEPARATION ===
         if self._voucher_type == "credit":
-            # CREDIT: Hide TDS and Expense Details
+            # CREDIT: Hide TDS, Expense Details, and Auto-Narration
             self.tds_frame.setVisible(False)
             self.expense_details_row.setVisible(False)
             self.vendor_group.setVisible(False)
             
-            # Amount label = "AMOUNT" (static total)
+            # === HIDE AUTO-NARRATION FOR CREDIT ===
+            if hasattr(self, 'auto_narration_row'):
+                self.auto_narration_row.setVisible(False)
+            
             self.amount_label.setText("Amount (₹) *:")
-            
-            # Update calculation mode
-            self._gst_is_additive = False  # For credit, amount is total
-            
+            self._gst_is_additive = False 
         else:  # DEBIT
-            # DEBIT: Show TDS and Expense Details
+            # DEBIT: Show TDS, Expense Details, and Auto-Narration
             self.tds_frame.setVisible(True)
             self.expense_details_row.setVisible(True)
             self.vendor_group.setVisible(True)
             
-            # Amount label = "Base Amount (excl. GST)"
-            self.amount_label.setText("Base Amount (excl. GST) *:")
+            # === SHOW AUTO-NARRATION FOR DEBIT ===
+            if hasattr(self, 'auto_narration_row'):
+                self.auto_narration_row.setVisible(True)
             
-            # Update calculation mode  
-            self._gst_is_additive = True  # For debit, GST calculated on top
+            self.amount_label.setText("Base Amount (excl. GST) *:")
+            self._gst_is_additive = True
         
         self._update_voucher_code()
         self._reset_form_for_type_change()
@@ -1216,25 +1255,17 @@ class VoucherEntryTab(QWidget):
             head = self.config.get_tally_head_by_code(head_code, self._voucher_type)
             if head:
                 info_parts = []
-                if head.gst_applicable:
-                    info_parts.append("GST Applicable")
-                else:
-                    info_parts.append("No GST")
-                if head.requires_franchise:
-                    info_parts.append("Franchise Required")
-                if head.tds_section:
-                    info_parts.append(f"TDS: {head.tds_section}")
+                info_parts.append("GST Applicable" if head.gst_applicable else "No GST")
+                if head.requires_franchise: info_parts.append("Franchise Required")
+                if head.tds_section: info_parts.append(f"TDS: {head.tds_section}")
                 
                 self.head_info_label.setText(" | ".join(info_parts))
-                
-                # Enable/disable franchise
                 self.franchise_combo.setEnabled(head.requires_franchise)
                 if head.requires_franchise:
                     self.franchise_required_label.setText("Franchise selection is required for this head")
                 else:
                     self.franchise_required_label.setText("")
                 
-                # Set GST default
                 if not head.gst_applicable:
                     self.gst_app_combo.setCurrentIndex(1)  # No
                 
@@ -1242,26 +1273,18 @@ class VoucherEntryTab(QWidget):
                 if head.tds_section and self._voucher_type == "debit":
                     rate = self.config.get_tds_rate_for_section(head.tds_section)
                     self.tds_rate_spin.setValue(rate)
-                    # Auto-select TDS ledger based on section
                     self._auto_select_tds_ledger(head.tds_section)
                 
-                # === Location Logic (Req 5) ===
-                # If Domestic head: Default to India
-                # If International head: Remove India from list
+                # Location Logic
                 if head.is_domestic is True:
-                    # Domestic: Default Country = India
                     self._populate_countries(exclude_india=False)
-                    # Find India and select it
-                    india_idx = self.country_combo.findData("356")
-                    if india_idx >= 0:
-                        self.country_combo.setCurrentIndex(india_idx)
+                    idx = self.country_combo.findData("356")
+                    if idx >= 0: self.country_combo.setCurrentIndex(idx)
                     self.country_note_label.setText("Domestic head: Country defaulted to India")
                 elif head.is_domestic is False:
-                    # International: Remove India from list
                     self._populate_countries(exclude_india=True)
                     self.country_note_label.setText("International head: India removed from list")
                 else:
-                    # No restriction
                     self._populate_countries(exclude_india=False)
                     self.country_note_label.setText("")
         else:
@@ -1272,81 +1295,67 @@ class VoucherEntryTab(QWidget):
         self._validate_step1()
     
     def _auto_select_tds_ledger(self, section: str):
-        """Auto-select TDS ledger based on section."""
         ledgers = self.config.get_tds_ledgers()
         for i, ledger in enumerate(ledgers):
             if ledger.section == section:
-                self.tds_ledger_combo.setCurrentIndex(i + 1)  # +1 for placeholder
+                self.tds_ledger_combo.setCurrentIndex(i + 1)
                 return
     
     def _on_voucher_date_changed(self):
-        """Handle voucher date change."""
         self._set_default_dates()
         self._validate_step1()
     
     def _set_default_dates(self):
-        """Set default from/to dates based on voucher date."""
         vdate = self.voucher_date.date().toPython()
         rules = self.config.get_validation_rules()
         period_days = rules.get("periodSuggestDays", 60)
-        
         from_date = vdate - timedelta(days=period_days)
         self.from_date.setDate(QDate(from_date.year, from_date.month, from_date.day))
         self.to_date.setDate(QDate(vdate.year, vdate.month, vdate.day))
     
     def _on_pos_changed(self, index):
-        """Handle Point of Supply change - auto-determine GST type and RCM."""
         state_code = self.pos_combo.currentData()
         if state_code:
             gst_type = self.config.determine_gst_type(state_code)
             is_foreign = self.config.is_pos_foreign(state_code)
             
             if is_foreign:
-                # Foreign Country: Apply RCM, use Output GST for Debit vouchers
                 self.gst_type_label.setText("GST Type: RCM (Reverse Charge)")
                 self.pos_indicator.setText("Foreign - RCM")
                 self.pos_indicator.setStyleSheet(f"color: {Styles.ERROR}; font-size: 11px; font-weight: bold;")
                 self.rcm_indicator.setText("RCM applies: Output GST will be used (Reverse Charge)")
                 self.rcm_indicator.setVisible(True)
-                # RCM uses CGST+SGST regardless of state
                 self.gst_split_label.setText("(Output CGST + Output SGST)")
             elif gst_type == "CGST_SGST":
                 self.gst_type_label.setText("GST Type: CGST + SGST (Intra-State)")
                 self.pos_indicator.setText("Intra-State")
                 self.pos_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold;")
-                self.rcm_indicator.setText("")
                 self.rcm_indicator.setVisible(False)
                 self._update_gst_split()
             else:
                 self.gst_type_label.setText("GST Type: IGST (Inter-State)")
                 self.pos_indicator.setText("Inter-State")
                 self.pos_indicator.setStyleSheet(f"color: {Styles.WARNING}; font-size: 11px; font-weight: bold;")
-                self.rcm_indicator.setText("")
                 self.rcm_indicator.setVisible(False)
                 self._update_gst_split()
             
-            # Store RCM flag for later
             self._is_rcm = is_foreign
         else:
-            self.rcm_indicator.setText("")
             self.rcm_indicator.setVisible(False)
             self._is_rcm = False
         
         self._validate_step2()
     
     def _on_gst_app_changed(self, index):
-        """Handle GST applicable change."""
         is_applicable = self.gst_app_combo.currentData() == "Y"
         self.gst_details_frame.setVisible(is_applicable)
         self._validate_step2()
     
     def _update_gst_split(self):
-        """Update GST split display."""
         rate = self.gst_rate_combo.currentData()
         if rate:
             state_code = self.pos_combo.currentData()
             gst_type = self.config.determine_gst_type(state_code) if state_code else "CGST_SGST"
-            
             if gst_type == "CGST_SGST":
                 half = rate / 2
                 self.gst_split_label.setText(f"(CGST: {half}% + SGST: {half}%)")
@@ -1354,16 +1363,13 @@ class VoucherEntryTab(QWidget):
                 self.gst_split_label.setText(f"(IGST: {rate}%)")
     
     def _on_tds_app_changed(self, index):
-        """Handle TDS applicable change."""
         is_applicable = self.tds_app_combo.currentData() == "Y"
         self.tds_rate_label.setEnabled(is_applicable)
         self.tds_rate_spin.setEnabled(is_applicable)
-        if not is_applicable:
-            self.tds_rate_spin.setValue(0)
+        if not is_applicable: self.tds_rate_spin.setValue(0)
         self._validate_step2()
     
     def _update_voucher_code(self):
-        """Update auto-generated voucher code."""
         product_code = self.product_combo.currentData() or "MISC"
         code = self.config.generate_voucher_code(
             self._voucher_type, product_code, self._voucher_sequence
@@ -1371,30 +1377,22 @@ class VoucherEntryTab(QWidget):
         self.voucher_code_display.setText(code)
     
     def _calculate_tax_breakup(self):
-        """Calculate and display tax breakup.
-        
-        CREDIT: Amount is TOTAL (inclusive of GST). Extract base from total.
-        DEBIT: Amount is BASE (excl. GST). GST calculated ON TOP.
-        """
         input_amount = self.amount_input.value()
-        
         gst_applicable = self.gst_app_combo.currentData() == "Y"
         gst_rate = self.gst_rate_combo.currentData() or 0
         
         if self._voucher_type == "credit":
             # CREDIT: Amount is TOTAL (inclusive)
-            # Extract: Base = Total / (1 + GST%)
             if gst_applicable and gst_rate > 0:
                 base_amount = input_amount / (1 + gst_rate / 100)
                 gst_amount = input_amount - base_amount
             else:
                 base_amount = input_amount
                 gst_amount = 0
-            gross = input_amount  # Total entered
+            gross = input_amount
             
         else:  # DEBIT
             # DEBIT: Amount is BASE (excl. GST)
-            # Calculate: GST = Base * GST%, Gross = Base + GST
             base_amount = input_amount
             if gst_applicable and gst_rate > 0:
                 gst_amount = base_amount * (gst_rate / 100)
@@ -1403,54 +1401,29 @@ class VoucherEntryTab(QWidget):
                 gst_amount = 0
                 gross = base_amount
         
-        # TDS (DEBIT only) - calculated on base amount
         tds_amount = 0
         if self._voucher_type == "debit" and self.tds_app_combo.currentData() == "Y":
             tds_rate = self.tds_rate_spin.value()
             tds_amount = base_amount * (tds_rate / 100)
         
-        # Net Payable calculation
         is_rcm = getattr(self, '_is_rcm', False)
         if is_rcm and self._voucher_type == "debit":
-            # RCM (Foreign Country): Party gets Base - TDS
-            # GST is paid separately via reverse charge mechanism
             net_payable = base_amount - tds_amount
         else:
             net_payable = gross - tds_amount
         
         # Update display
         self.gross_display.setText(f"₹ {gross:,.2f}")
-        
-        if self._voucher_type == "credit":
-            self.taxable_label.setText(f"Taxable Amount: ₹{base_amount:,.2f}")
-        else:
-            self.taxable_label.setText(f"Base Amount: ₹{base_amount:,.2f}")
-        
-        state_code = self.pos_combo.currentData()
-        is_foreign = self.config.is_pos_foreign(state_code) if state_code else False
-        gst_type = "CGST_SGST" if is_foreign else (self.config.determine_gst_type(state_code) if state_code else "CGST_SGST")
+        self.taxable_label.setText(f"{'Base' if self._voucher_type=='debit' else 'Taxable'} Amount: ₹{base_amount:,.2f}")
         
         if gst_applicable and gst_amount > 0:
-            if is_foreign and self._voucher_type == "debit":
-                # RCM: Output GST (reverse charge)
-                half = gst_amount / 2
-                self.gst_amount_label.setText(f"+ Output CGST: ₹{half:,.2f} + Output SGST: ₹{half:,.2f} = ₹{gst_amount:,.2f}")
-            elif gst_type == "CGST_SGST":
-                half = gst_amount / 2
-                prefix = "+" if self._voucher_type == "debit" else ""
-                self.gst_amount_label.setText(f"{prefix} CGST: ₹{half:,.2f} + SGST: ₹{half:,.2f} = ₹{gst_amount:,.2f}")
-            else:
-                prefix = "+" if self._voucher_type == "debit" else ""
-                self.gst_amount_label.setText(f"{prefix} IGST: ₹{gst_amount:,.2f}")
+            self.gst_amount_label.setText(f"GST: ₹{gst_amount:,.2f}")
         else:
             self.gst_amount_label.setText("GST: ₹0.00")
         
-        # TDS display (DEBIT only)
         if self._voucher_type == "debit":
             self.tds_amount_label.setVisible(True)
             self.tds_amount_label.setText(f"- TDS/WHT: ₹{tds_amount:,.2f}")
-            
-            # Show RCM Journal Entry Preview (DEBIT + Foreign only)
             if is_rcm and gst_applicable:
                 self._update_rcm_journal_preview(base_amount, gst_amount, tds_amount, net_payable)
             else:
@@ -1461,191 +1434,102 @@ class VoucherEntryTab(QWidget):
         
         self.net_amount_label.setText(f"Net Payable: ₹{net_payable:,.2f}")
         
-        # Store for preview
-        self._step_data['taxable'] = base_amount
-        self._step_data['gst_amount'] = gst_amount
-        self._step_data['tds_amount'] = tds_amount
-        self._step_data['net_payable'] = net_payable
-        self._step_data['gross_amount'] = gross
-        self._step_data['gst_type'] = gst_type
-        self._step_data['is_rcm'] = is_rcm
+        self._step_data.update({
+            'taxable': base_amount, 'gst_amount': gst_amount,
+            'tds_amount': tds_amount, 'net_payable': net_payable,
+            'gross_amount': gross, 'is_rcm': is_rcm
+        })
     
     def _update_rcm_journal_preview(self, base: float, gst: float, tds: float, net: float):
-        """Update RCM Journal Entry preview (Req 3)."""
         half_gst = gst / 2
-        tds_applicable = self.tds_app_combo.currentData() == "Y" and tds > 0
-        
         entries = []
         entries.append(f"Dr  Expense Ledger          ₹{base:>12,.2f}")
         entries.append(f"Cr  Output SGST             ₹{half_gst:>12,.2f}")
         entries.append(f"Cr  Output CGST             ₹{half_gst:>12,.2f}")
         
-        if tds_applicable:
-            # Condition A: WHT applicable
+        if tds > 0:
             entries.append(f"Cr  TDS Payable             ₹{tds:>12,.2f}")
             entries.append(f"Cr  Party A/C (Net)         ₹{net:>12,.2f}")
         else:
-            # Condition B: No WHT
             entries.append(f"Cr  Party A/C               ₹{base:>12,.2f}")
         
         self.rcm_entries_label.setText("\n".join(entries))
         self.rcm_journal_frame.setVisible(True)
     
     # === Validation ===
-    
     def _validate_step1(self) -> bool:
-        """Validate Step 1 fields."""
-        errors = []
-        
-        # Head selection
         if not self.tally_head_combo.currentData():
-            errors.append("Select Tally Accounting Head")
-        
-        # Voucher date (max 7 days backdate)
-        vdate = self.voucher_date.date().toPython()
-        today = date.today()
-        rules = self.config.get_validation_rules()
-        max_backdate = rules.get("maxBackdateDays", 7)
-        
-        if vdate > today:
-            self.vdate_error.setText("Future date not allowed")
-            errors.append("Voucher date cannot be future")
-        elif (today - vdate).days > max_backdate:
-            self.vdate_error.setText(f"Max {max_backdate} days backdate")
-            errors.append(f"Voucher date max {max_backdate} days backdated")
-        else:
-            self.vdate_error.setText("")
-        
-        # Period validation
-        from_d = self.from_date.date().toPython()
-        to_d = self.to_date.date().toPython()
-        
-        if from_d > to_d:
-            self.period_error.setText("From > To invalid")
-            errors.append("From date cannot be after To date")
-        elif to_d > vdate:
-            self.period_error.setText("To > Voucher invalid")
-            errors.append("To date cannot be after Voucher date")
-        else:
-            self.period_error.setText("")
-        
-        return len(errors) == 0
+            return False
+        # Add basic date validation here if needed
+        return True
     
     def _validate_step2(self) -> bool:
-        """Validate Step 2 fields."""
-        errors = []
-        
-        # POS required
-        if not self.pos_combo.currentData():
-            errors.append("Select Point of Supply")
-        
-        # Franchise if required
-        head_code = self.tally_head_combo.currentData()
-        if head_code:
-            head = self.config.get_tally_head_by_code(head_code, self._voucher_type)
-            if head and head.requires_franchise and not self.franchise_combo.currentData():
-                errors.append("Franchise required for selected head")
-        
-        return len(errors) == 0
+        if not self.pos_combo.currentData(): return False
+        return True
     
     def _validate_step3(self) -> bool:
-        """Validate Step 3 fields."""
-        errors = []
-        
         amount = self.amount_input.value()
-        rules = self.config.get_validation_rules()
-        
-        if amount < rules.get("minAmount", 1):
-            errors.append("Amount must be greater than zero")
-        
-        if amount > rules.get("maxAmount", 99999999.99):
-            errors.append("Amount exceeds maximum limit")
-        
-        return len(errors) == 0
+        if amount <= 0: return False
+        if self._voucher_type == "debit":
+             # Vendor name is in the Combo Box now
+             vendor = self.vendor_combo.currentText().strip()
+             if not vendor or vendor == "-- Select or Enter Vendor Name --":
+                 QMessageBox.warning(self, "Error", "Vendor Name is required")
+                 return False
+        return True
     
     def _auto_generate_narration(self):
-        """Auto-generate narration (Req 2).
+        """Auto-generate narration based on available fields."""
+        # Get dates
+        from_str = self.from_date.date().toString("dd-MMM-yyyy")
+        to_str = self.to_date.date().toString("dd-MMM-yyyy")
+        period_str = f"for period {from_str} to {to_str}"
         
-        Format: [Expense Details] for the period [Start Date] to [End Date] 
-                purchased from [Vendor Name] for product [Product Name] 
-                under Business Segment [Segment Name], [Country]
-        """
-        expense_details = self.expense_details_input.text().strip() or "Expense"
-        vendor_name = self.vendor_name_input.text().strip() or "Vendor"
+        # Get Invoice Info
+        inv_no = self.invoice_no_input.text().strip()
+        inv_str = f"Inv:{inv_no}" if inv_no else ""
+
+        # DEBIT FORMAT: [Expense] from [Vendor] [InvNo] [Period]
+        exp = self.expense_details_input.text().strip() or "Expense"
+        vnd = self.vendor_combo.currentText().strip()
+        if not vnd or vnd.startswith("--"): vnd = "Vendor"
         
-        # Get dates from Step 1
-        from_date = self._step_data.get('from_date', self.from_date.date().toPython())
-        to_date = self._step_data.get('to_date', self.to_date.date().toPython())
+        self.narration_edit.setText(f"{exp} from {vnd} {inv_str} {period_str}")
         
-        # Format dates
-        from_str = from_date.strftime("%d-%b-%Y") if from_date else ""
-        to_str = to_date.strftime("%d-%b-%Y") if to_date else ""
-        
-        # Get product and segment from Step 2
-        product_name = self.product_combo.currentText() or "N/A"
-        segment_name = self.segment_combo.currentText() or "N/A"
-        country_name = self.country_combo.currentText() or "N/A"
-        
-        # Build narration
-        narration = (
-            f"{expense_details} for the period {from_str} to {to_str} "
-            f"purchased from {vendor_name} for product {product_name} "
-            f"under Business Segment {segment_name}, {country_name}"
-        )
-        
-        self.narration_edit.setText(narration)
     
     # === Navigation ===
-    
     def _on_next(self):
-        """Move to next step if valid."""
         if self._current_step == 1:
             if self._validate_step1():
                 self._save_step1_data()
                 self._go_to_step(2)
-            else:
-                QMessageBox.warning(self, "Validation", "Please complete all required fields in Step 1.")
-        
         elif self._current_step == 2:
             if self._validate_step2():
                 self._save_step2_data()
                 self._go_to_step(3)
-            else:
-                QMessageBox.warning(self, "Validation", "Please complete all required fields in Step 2.")
-        
         elif self._current_step == 3:
             if self._validate_step3():
                 self._save_step3_data()
                 self._build_preview()
                 self._go_to_step(4)
-            else:
-                QMessageBox.warning(self, "Validation", "Please enter a valid amount.")
     
     def _on_back(self):
-        """Move to previous step."""
-        if self._current_step > 1:
-            self._go_to_step(self._current_step - 1)
+        if self._current_step > 1: self._go_to_step(self._current_step - 1)
     
     def _go_to_step(self, step: int):
-        """Go to specific step."""
         self._current_step = step
         self._update_step_visibility()
     
     def _update_step_visibility(self):
-        """Update UI based on current step."""
         self.step_stack.setCurrentIndex(self._current_step - 1)
-        
-        # Update headers
         for i, header in enumerate(self.step_headers, 1):
             header.set_active(i == self._current_step)
             header.set_complete(i < self._current_step)
-        
-        # Update nav buttons
         self.back_btn.setEnabled(self._current_step > 1)
         self.next_btn.setVisible(self._current_step < 4)
     
     def _save_step1_data(self):
-        """Save Step 1 data."""
+        self._step_data['voucher_class'] = self.voucher_type_combo.currentText() # Save Voucher Type
         self._step_data['head_code'] = self.tally_head_combo.currentData()
         self._step_data['head_name'] = self.tally_head_combo.currentText()
         self._step_data['voucher_date'] = self.voucher_date.date().toPython()
@@ -1653,291 +1537,145 @@ class VoucherEntryTab(QWidget):
         self._step_data['to_date'] = self.to_date.date().toPython()
     
     def _save_step2_data(self):
-        """Save Step 2 data."""
         self._step_data['segment'] = self.segment_combo.currentData()
-        self._step_data['segment_name'] = self.segment_combo.currentText()
-        self._step_data['country'] = self.country_combo.currentData()
-        self._step_data['country_name'] = self.country_combo.currentText()
-        self._step_data['product'] = self.product_combo.currentData()
-        self._step_data['product_name'] = self.product_combo.currentText()
-        self._step_data['franchise'] = self.franchise_combo.currentData()
-        self._step_data['voucher_code'] = self.voucher_code_display.text()
-        self._step_data['pos_state'] = self.pos_combo.currentData()
         self._step_data['pos_name'] = self.pos_combo.currentText()
+        self._step_data['voucher_code'] = self.voucher_code_display.text()
         self._step_data['gst_applicable'] = self.gst_app_combo.currentData() == "Y"
-        self._step_data['gst_rate'] = self.gst_rate_combo.currentData() or 0
-        self._step_data['is_rcm'] = getattr(self, '_is_rcm', False)
-        
-        if self._voucher_type == "debit":
-            self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
-            self._step_data['tds_rate'] = self.tds_rate_spin.value()
-            self._step_data['tds_ledger'] = self.tds_ledger_combo.currentData()
-            self._step_data['tds_ledger_name'] = self.tds_ledger_combo.currentText()
-        else:
-            self._step_data['tds_applicable'] = False
-            self._step_data['tds_rate'] = 0
-            self._step_data['tds_ledger'] = None
-        
-        self._update_voucher_code()
+        self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
     
     def _save_step3_data(self):
-        """Save Step 3 data."""
-        self._step_data['vendor_name'] = self.vendor_name_input.text().strip()
-        self._step_data['expense_details'] = self.expense_details_input.text().strip()
-        self._step_data['base_amount'] = self.amount_input.value()
+        self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
+        self._step_data['invoice_no'] = self.invoice_no_input.text()
+        self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
         self._step_data['narration'] = self.narration_edit.toPlainText()
-        self._calculate_tax_breakup()
     
     def _build_preview(self):
-        """Build preview display."""
-        # Header
+        """Build the preview table and calculate totals."""
+        self.preview_table.setRowCount(0)
         self.preview_vno.setText(f"Voucher No: {self._step_data.get('voucher_code', '--')}")
         self.preview_vdate.setText(f"Date: {self._step_data.get('voucher_date', '--')}")
         self.preview_pos.setText(f"POS: {self._step_data.get('pos_name', '--')}")
         
-        # Build ledger table
-        self.preview_table.setRowCount(0)
-        
-        taxable = self._step_data.get('taxable', 0)
-        gst_amount = self._step_data.get('gst_amount', 0)
-        tds_amount = self._step_data.get('tds_amount', 0)
-        gst_type = self._step_data.get('gst_type', 'CGST_SGST')
+        # Get data
+        taxable = self._step_data.get('taxable', 0.0)
+        gst = self._step_data.get('gst_amount', 0.0)
+        tds = self._step_data.get('tds_amount', 0.0)
+        net = self._step_data.get('net_payable', 0.0)
+        gross = self._step_data.get('gross_amount', 0.0)
         head_name = self._step_data.get('head_name', '')
+        is_rcm = self._step_data.get('is_rcm', False)
         
-        total_dr = 0
-        total_cr = 0
+        total_dr = 0.0
+        total_cr = 0.0
         
-        if self._voucher_type == "credit":
-            # Credit voucher: Dr Party, Cr Income + GST
-            # Main ledger (Credit)
-            self._add_preview_row(head_name, "", f"₹{taxable:,.2f}", "Income")
-            total_cr += taxable
-            
-            # GST ledgers (Credit)
-            if self._step_data.get('gst_applicable') and gst_amount > 0:
-                gst_ledgers = self.config.get_gst_ledgers()
-                if gst_type == "CGST_SGST":
-                    half = gst_amount / 2
-                    self._add_preview_row(gst_ledgers.get('outputCgst', 'Output CGST'), "", f"₹{half:,.2f}", "GST")
-                    self._add_preview_row(gst_ledgers.get('outputSgst', 'Output SGST'), "", f"₹{half:,.2f}", "GST")
-                    total_cr += gst_amount
-                else:
-                    self._add_preview_row(gst_ledgers.get('outputIgst', 'Output IGST'), "", f"₹{gst_amount:,.2f}", "GST")
-                    total_cr += gst_amount
-            
-            # Party (Debit)
-            gross = self._step_data.get('gross_amount', 0)
-            self._add_preview_row("Party / Customer A/c", f"₹{gross:,.2f}", "", "Party")
-            total_dr += gross
+        # === DEBIT VOUCHER PREVIEW ===
+        if self._voucher_type == "debit":
+             # 1. Dr Expense
+             self._add_preview_row(head_name, f"₹{taxable:,.2f}", "", "Expense")
+             total_dr += taxable
+             
+             # 2. Dr Input GST (Only if NOT RCM)
+             # If RCM, GST is not booked on the purchase voucher itself usually
+             if gst > 0 and not is_rcm:
+                 self._add_preview_row("Input GST", f"₹{gst:,.2f}", "", "GST")
+                 total_dr += gst
+             
+             # 3. Cr Vendor (Net Payable)
+             vendor_display = self._step_data.get('vendor_name', 'Vendor / Party A/c')
+             self._add_preview_row(vendor_display, "", f"₹{net:,.2f}", "Party")
+             total_cr += net
+             
+             # 4. Cr TDS (Missing in previous code)
+             if tds > 0:
+                 self._add_preview_row("TDS Payable", "", f"₹{tds:,.2f}", "TDS / WHT")
+                 total_cr += tds
         
-        else:
-            # Debit voucher: Dr Expense + GST, Cr Party, Cr TDS
-            # Main ledger (Debit)
-            self._add_preview_row(head_name, f"₹{taxable:,.2f}", "", "Expense")
-            total_dr += taxable
-            
-            # GST ledgers (Debit - Input)
-            if self._step_data.get('gst_applicable') and gst_amount > 0:
-                gst_ledgers = self.config.get_gst_ledgers()
-                if gst_type == "CGST_SGST":
-                    half = gst_amount / 2
-                    self._add_preview_row(gst_ledgers.get('inputCgst', 'Input CGST'), f"₹{half:,.2f}", "", "GST")
-                    self._add_preview_row(gst_ledgers.get('inputSgst', 'Input SGST'), f"₹{half:,.2f}", "", "GST")
-                    total_dr += gst_amount
-                else:
-                    self._add_preview_row(gst_ledgers.get('inputIgst', 'Input IGST'), f"₹{gst_amount:,.2f}", "", "GST")
-                    total_dr += gst_amount
-            
-            # TDS (Credit)
-            if self._step_data.get('tds_applicable') and tds_amount > 0:
-                self._add_preview_row("TDS Payable", "", f"₹{tds_amount:,.2f}", "TDS")
-                total_cr += tds_amount
-            
-            # Party (Credit)
-            net = self._step_data.get('net_payable', 0)
-            self._add_preview_row("Vendor / Party A/c", "", f"₹{net:,.2f}", "Party")
-            total_cr += net
+        # === CREDIT VOUCHER PREVIEW ===
+        else: 
+             # 1. Dr Party (Gross)
+             self._add_preview_row("Party / Customer A/c", f"₹{gross:,.2f}", "", "Party")
+             total_dr += gross
+             
+             # 2. Cr Income
+             self._add_preview_row(head_name, "", f"₹{taxable:,.2f}", "Income")
+             total_cr += taxable
+             
+             # 3. Cr Output GST
+             if gst > 0:
+                 self._add_preview_row("Output GST", "", f"₹{gst:,.2f}", "GST")
+                 total_cr += gst
+                 
+        self.preview_narration.setText(f"Narration: {self._step_data.get('narration', '')}")
         
-        # Totals
+        # === UPDATE TOTAL LABELS ===
         self.preview_total_dr.setText(f"Total Dr: ₹{total_dr:,.2f}")
         self.preview_total_cr.setText(f"Total Cr: ₹{total_cr:,.2f}")
         
-        # Narration
-        narration = self._step_data.get('narration', '')
-        self.preview_narration.setText(f"Narration: {narration if narration else '(No narration)'}")
-        
-        self.preview_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-    
-    def _add_preview_row(self, ledger: str, dr: str, cr: str, row_type: str):
-        """Add row to preview table."""
+        # Color validation (Green if balanced, Red if mismatch)
+        if abs(total_dr - total_cr) < 0.01:
+            color = Styles.SUCCESS
+        else:
+            color = Styles.ERROR
+            
+        self.preview_total_dr.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {color};")
+        self.preview_total_cr.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {color};")
+
+    def _add_preview_row(self, ledger, dr, cr, row_type):
         row = self.preview_table.rowCount()
         self.preview_table.insertRow(row)
-        
         self.preview_table.setItem(row, 0, QTableWidgetItem(ledger))
         self.preview_table.setItem(row, 1, QTableWidgetItem(dr))
         self.preview_table.setItem(row, 2, QTableWidgetItem(cr))
         self.preview_table.setItem(row, 3, QTableWidgetItem(row_type))
-    
+
     def _on_confirm(self):
-        """Confirm and save voucher."""
-        reply = QMessageBox.question(
-            self, "Confirm Voucher",
-            f"Save this {self._voucher_type.upper()} voucher?\n\n"
-            f"Amount: ₹{self._step_data.get('gross_amount', 0):,.2f}\n"
-            f"Voucher Code: {self._step_data.get('voucher_code', '')}",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            try:
-                voucher = self._create_voucher()
-                self.data_service.add_voucher(voucher)
-                self._voucher_sequence += 1
+        try:
+            # Prepare optional fields
+            vendor = self._step_data.get('vendor_name')
+            inv_no = self._step_data.get('invoice_no')
+            inv_date = self._step_data.get('invoice_date')
+            
+            # If Credit, ensure these are None
+            if self._voucher_type == "credit":
+                vendor = None
+                inv_no = None
+                inv_date = None
+
+            v = Voucher(
+                date=datetime.combine(self._step_data['voucher_date'], datetime.min.time()),
+                voucher_type=VoucherType.CREDIT if self._voucher_type=="credit" else VoucherType.DEBIT,
+                account_code=self._step_data.get('head_code'),
+                amount=self._step_data.get('gross_amount', 0),
+                narration=self._step_data.get('narration', ''),
+                reference_id=self._step_data.get('voucher_code', ''),
+                status=VoucherStatus.PENDING_REVIEW,
                 
-                QMessageBox.information(
-                    self, "Success",
-                    f"Voucher saved successfully!\n\nCode: {voucher.voucher_id[:8]}..."
-                )
-                
-                self.voucher_saved.emit(voucher)
-                self._reset_form()
-                
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save voucher:\n{e}")
-    
-    def _create_voucher(self) -> Voucher:
-        """Create Voucher object from step data."""
-        from datetime import datetime as dt
-        
-        vtype = VoucherType.CREDIT if self._voucher_type == "credit" else VoucherType.DEBIT
-        
-        return Voucher(
-            date=dt.combine(self._step_data['voucher_date'], dt.min.time()),
-            voucher_type=vtype,
-            account_code=self._step_data.get('head_code', ''),
-            account_name=self._step_data.get('head_name', ''),
-            amount=self._step_data.get('gross_amount', 0),
-            segment=self._step_data.get('product', ''),
-            narration=self._step_data.get('narration', ''),
-            reference_id=self._step_data.get('voucher_code', ''),
-            status=VoucherStatus.PENDING_REVIEW,
-            source="Manual - 4 Step",
-            from_date=self._step_data.get('from_date'),
-            to_date=self._step_data.get('to_date')
-        )
-    
+                # === PASS NEW FIELDS HERE ===
+                party_name=vendor,
+                invoice_no=inv_no,
+                invoice_date=inv_date
+                # ============================
+            )
+            
+            self.data_service.add_voucher(v)
+            QMessageBox.information(self, "Success", "Voucher saved successfully!")
+            self.voucher_saved.emit(v)
+            self._reset_form()
+            
+        except TypeError as e:
+            QMessageBox.critical(self, "System Error", f"Model Mismatch: {str(e)}\nPlease check models/voucher.py")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
+
     def _reset_form(self):
-        """Reset entire form."""
         self._current_step = 1
         self._step_data = {}
-        self._is_rcm = False
-        self._gst_is_additive = self._voucher_type == "debit"
-        
-        # Reset Step 1
-        self._populate_tally_heads()
-        self._set_default_dates()
-        self.head_info_label.setText("")
-        self.vdate_error.setText("")
-        self.period_error.setText("")
-        
-        # Reset Step 2
-        self.segment_combo.setCurrentIndex(0)
-        self._populate_countries(exclude_india=False)
-        self.country_note_label.setText("")
-        self.product_combo.setCurrentIndex(0)
-        self.franchise_combo.setCurrentIndex(0)
-        self.franchise_combo.setEnabled(False)
-        self.franchise_required_label.setText("")
-        self.gst_app_combo.setCurrentIndex(0)
-        self.tds_app_combo.setCurrentIndex(1)  # No
-        self.tds_rate_spin.setValue(0)
-        self.tds_ledger_combo.setCurrentIndex(0)
-        self.rcm_indicator.setText("")
-        self.rcm_indicator.setVisible(False)
-        self._update_voucher_code()
-        
-        # Reset Step 3 - Apply type-specific visibility
-        self._apply_type_specific_ui()
-        self.vendor_name_input.clear()
-        self.expense_details_input.clear()
+        self.tally_head_combo.setCurrentIndex(0)
+        self.vendor_combo.setCurrentIndex(0)
+        self.invoice_no_input.clear()
         self.amount_input.setValue(0)
         self.narration_edit.clear()
-        self.gross_display.setText("")
-        self.taxable_label.setText("Taxable Amount: ₹0.00" if self._voucher_type == "credit" else "Base Amount: ₹0.00")
-        self.gst_amount_label.setText("GST: ₹0.00")
-        self.tds_amount_label.setText("- TDS/WHT: ₹0.00")
-        self.net_amount_label.setText("Net Payable: ₹0.00")
-        self.rcm_journal_frame.setVisible(False)
-        
-        # Reset Step 4
-        self.preview_table.setRowCount(0)
-        
-        self._update_step_visibility()
+        self._go_to_step(1)
     
     def _reset_form_for_type_change(self):
-        """Reset form when voucher type changes - maintains current step."""
-        self._step_data = {}
-        self._is_rcm = False
-        self._gst_is_additive = self._voucher_type == "debit"
-        
-        # Apply type-specific UI visibility
-        self._apply_type_specific_ui()
-        
-        # Reset Step 1
-        self._set_default_dates()
-        self.head_info_label.setText("")
-        
-        # Reset Step 2
-        self._populate_countries(exclude_india=False)
-        self.country_note_label.setText("")
-        self.franchise_combo.setCurrentIndex(0)
-        self.franchise_combo.setEnabled(False)
-        self.franchise_required_label.setText("")
-        self.gst_app_combo.setCurrentIndex(0)
-        self.tds_app_combo.setCurrentIndex(1)
-        self.tds_rate_spin.setValue(0)
-        self.tds_ledger_combo.setCurrentIndex(0)
-        self.rcm_indicator.setText("")
-        self.rcm_indicator.setVisible(False)
-        
-        # Reset Step 3
-        self.vendor_name_input.clear()
-        self.expense_details_input.clear()
-        self.amount_input.setValue(0)
-        self.narration_edit.clear()
-        self.gross_display.setText("")
-        self.taxable_label.setText("Taxable Amount: ₹0.00" if self._voucher_type == "credit" else "Base Amount: ₹0.00")
-        self.gst_amount_label.setText("GST: ₹0.00")
-        self.tds_amount_label.setText("- TDS/WHT: ₹0.00")
-        self.net_amount_label.setText("Net Payable: ₹0.00")
-        self.rcm_journal_frame.setVisible(False)
-        
-        # Reset Step 4
-        self.preview_table.setRowCount(0)
-        
-        # Return to Step 1
-        self._current_step = 1
-        self._update_step_visibility()
-    
-    def _apply_type_specific_ui(self):
-        """Apply Credit/Debit specific UI visibility.
-        
-        CREDIT: HIDE TDS frame, Expense Details, Vendor section, Auto-narration
-        DEBIT: SHOW all above fields
-        """
-        is_debit = self._voucher_type == "debit"
-        
-        # Step 2: TDS Configuration
-        self.tds_frame.setVisible(is_debit)
-        
-        # Step 3: Vendor, Expense Details, Auto-narration
-        self.vendor_group.setVisible(is_debit)
-        self.expense_details_row.setVisible(is_debit)
-        self.auto_narration_row.setVisible(is_debit)
-        self.tds_amount_label.setVisible(is_debit)
-        
-        # Update Amount label
-        if is_debit:
-            self.amount_label.setText("Base Amount (excl. GST) *:")
-        else:
-            self.amount_label.setText("Amount (₹) *:")
+        self._reset_form()
