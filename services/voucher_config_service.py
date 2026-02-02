@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
-
+from models.master_data import MasterData
 
 @dataclass
 class TallyHead:
@@ -66,6 +66,7 @@ class VoucherConfigService:
         """Initialize the configuration service."""
         self._config: Dict = {}
         self._loaded = False
+        self.master_data = None
         self.load_config()
     
     def load_config(self) -> bool:
@@ -82,17 +83,20 @@ class VoucherConfigService:
                 if os.path.exists(path):
                     with open(path, 'r', encoding='utf-8') as f:
                         self._config = json.load(f)
+                    self.master_data = MasterData.from_dict(self._config)
                     self._loaded = True
                     return True
             
             # Create default config if not found
             self._config = self._get_default_config()
+            self.master_data = MasterData.from_dict(self._config)
             self._loaded = True
             return True
             
         except Exception as e:
             print(f"Error loading voucher config: {e}")
             self._config = self._get_default_config()
+            self.master_data = MasterData()
             self._loaded = True
             return False
     
@@ -105,6 +109,11 @@ class VoucherConfigService:
             "productSelect": [{"code": "MISC", "name": "Miscellaneous", "prefix": "MSC"}],
             "franchiseSelect": [],
             "posSelect": [{"code": "MH", "name": "Maharashtra", "isHomeState": True}],
+            
+            # === 4. ADD NEW VENDORS LIST HERE ===
+            "vendors": [], 
+            # ====================================
+            
             "gstApp": [
                 {"code": "Y", "name": "Yes", "value": True},
                 {"code": "N", "name": "No", "value": False}
@@ -568,6 +577,66 @@ class VoucherConfigService:
             p["isHomeState"] = (p.get("value") == state_code)
         return self.save_config()
 
+
+# ==========================================
+    #               VENDOR MANAGMENT
+    # ==========================================
+
+    def get_all_vendors(self) -> List[dict]:
+        """Get all active vendors."""
+        if not self.master_data:
+            return []
+        # Return sorted by name
+        return sorted(
+            [v for v in self.master_data.vendors if v.get("isActive", True)],
+            key=lambda x: x.get("name", "")
+        )
+
+    def get_all_vendors_raw(self) -> List[dict]:
+        """Get all vendors including inactive."""
+        return self.master_data.vendors if self.master_data else []
+
+    def add_vendor(self, data: dict) -> bool:
+        """Add a new vendor."""
+        if not self.master_data: 
+            return False
+        
+        # Check duplicate
+        name = data.get("name", "").strip()
+        if any(v.get("name", "").lower() == name.lower() for v in self.master_data.vendors):
+            return False # Duplicate
+            
+        new_vendor = {
+            "name": name,
+            "gstin": data.get("gstin", ""),
+            "contact_person": data.get("contact_person", ""),
+            "isActive": True
+        }
+        self.master_data.vendors.append(new_vendor)
+        self.data_service.save_master_data()
+        return True
+
+    def update_vendor(self, original_name: str, data: dict) -> bool:
+        """Update an existing vendor."""
+        if not self.master_data: return False
+        
+        for i, v in enumerate(self.master_data.vendors):
+            if v.get("name") == original_name:
+                self.master_data.vendors[i].update(data)
+                self.data_service.save_master_data()
+                return True
+        return False
+
+    def delete_vendor(self, name: str) -> bool:
+        """Soft delete (disable) a vendor."""
+        if not self.master_data: return False
+        
+        for i, v in enumerate(self.master_data.vendors):
+            if v.get("name") == name:
+                self.master_data.vendors[i]["isActive"] = False
+                self.data_service.save_master_data()
+                return True
+        return False
 
 # Singleton instance
 _config_service = None

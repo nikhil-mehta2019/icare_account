@@ -643,6 +643,11 @@ class VoucherEntryTab(QWidget):
         self.vendor_combo.setPlaceholderText("-- Select or Enter Vendor Name --")
         self._populate_vendors() # Initial population
         vendor_layout.addRow("Vendor Name:", self.vendor_combo)
+
+        # CHANGED: Styled Label for Vendor
+        lbl_vendor = QLabel("Vendor Name:")
+        lbl_vendor.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
+        vendor_layout.addRow(lbl_vendor, self.vendor_combo)
         
         # NEW: Invoice Details Row
         inv_row_layout = QHBoxLayout()
@@ -656,10 +661,16 @@ class VoucherEntryTab(QWidget):
         self.invoice_date_input.setDisplayFormat("dd-MMM-yyyy")
         self.invoice_date_input.setMinimumHeight(32)
         
-        inv_row_layout.addWidget(QLabel("Invoice No:"))
+        lbl_inv_no = QLabel("Invoice No:")
+        lbl_inv_no.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
+        
+        lbl_inv_date = QLabel("Invoice Date:")
+        lbl_inv_date.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
+        
+        inv_row_layout.addWidget(lbl_inv_no)
         inv_row_layout.addWidget(self.invoice_no_input)
         inv_row_layout.addSpacing(20)
-        inv_row_layout.addWidget(QLabel("Invoice Date:"))
+        inv_row_layout.addWidget(lbl_inv_date)
         inv_row_layout.addWidget(self.invoice_date_input)
         
         vendor_layout.addRow(inv_row_layout)
@@ -1544,6 +1555,20 @@ class VoucherEntryTab(QWidget):
         self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
     
     def _save_step3_data(self):
+        vendor_name = self.vendor_combo.currentText().strip()
+        
+        # === AUTO-SAVE NEW VENDOR ===
+        if self._voucher_type == "debit" and vendor_name and vendor_name != "-- Select or Enter Vendor Name --":
+            # Check if exists in current list
+            existing = [v['name'].lower() for v in self.config.get_all_vendors()]
+            
+            if vendor_name.lower() not in existing:
+                # It's new! Save to Master Data
+                self.config.add_vendor({"name": vendor_name, "isActive": True})
+                # (Optional) Reload combo to include the new item cleanly
+                # self._populate_vendors() 
+                # self.vendor_combo.setCurrentText(vendor_name)
+        # ============================
         self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
         self._step_data['invoice_no'] = self.invoice_no_input.text()
         self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
@@ -1679,3 +1704,14 @@ class VoucherEntryTab(QWidget):
     
     def _reset_form_for_type_change(self):
         self._reset_form()
+
+        
+    def _populate_vendors(self):
+        """Populate Vendor dropdown from Master Data."""
+        self.vendor_combo.clear()
+        self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
+        
+        # Load from Config Service
+        vendors = self.config.get_all_vendors()
+        for v in vendors:
+            self.vendor_combo.addItem(v['name'], v['name'])

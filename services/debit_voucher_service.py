@@ -82,6 +82,21 @@ class DebitVoucherImportService:
         'narration': ['Narration', 'Description', 'Particulars'],
     }
     
+    # NEW: Payroll Cost Columns based on client requirements
+    PAYROLL_COST_COLUMNS = {
+        'segment': ['Business Segment'],
+        'product': ['Product Code'],
+        'location': ['Location'],
+        'amount': ['Amount'],  # Base Gross Salary
+        'emp_pf': ['Employee Share of PF Payable'],
+        'employer_pf': ['Employer Share of PF Payable'],
+        'emp_esic': ['Employee Share of ESIC Payable'],
+        'employer_esic': ['Employer Share of ESIC Payable'],
+        'pt': ['Professional Tax Payable'],
+        'tds': ['TDS on Salary Payable - FY 2026-27', 'TDS on Salary Payable'],
+        'net_payable': ['Salary Payable']
+    }
+
     def __init__(self, config: DebitVoucherConfig = None):
         """Initialize with optional configuration."""
         self.config = config or DebitVoucherConfig.create_default()
@@ -428,6 +443,124 @@ class DebitVoucherImportService:
                 
                 result.preview_data = [row for row in csv.DictReader(open(filepath, 'r', encoding='utf-8-sig'))][:10]
         
+        except Exception as e:
+            result.status = ImportStatus.FAILED
+            result.add_error(0, 'FILE_ERROR', str(e))
+        
+        result.complete()
+        self._current_result = result
+        return vouchers, result
+    
+    def import_payroll_cost_csv(self, filepath: str, voucher_date: datetime) -> Tuple[List[JournalVoucher], ImportResult]:
+        """
+        Import specific 'Payroll Cost' CSV format.
+        Creates a consolidated Journal Voucher (JV).
+        """
+        vouchers = []
+        result = ImportResult(
+            filename=os.path.basename(filepath),
+            import_type='Payroll Cost',
+            status=ImportStatus.IN_PROGRESS
+        )
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                # Read all lines first to handle potential empty rows or two-part files
+                lines = f.readlines()
+                
+                # Filter out the "Accounting Entry" section at bottom if present
+                data_lines = []
+                for line in lines:
+                    if "Accounting Entry" in line:
+                        break
+                    if line.strip():
+                        data_lines.append(line)
+                
+                reader = csv.DictReader(data_lines)
+                headers = reader.fieldnames or []
+                result.column_headers = headers
+                
+                col_map = {}
+                for field, possible_names in self.PAYROLL_COST_COLUMNS.items():
+                    col = self._find_column(headers, possible_names)
+                    if col:
+                        col_map[field] = col
+                
+                # Create the Journal Voucher Object
+                jv = JournalVoucher(
+                    voucher_no=f"PAYROLL-{voucher_date.strftime('%b%Y').upper()}",
+                    voucher_date=voucher_date,
+                    narration=f"Payroll Cost for {voucher_date.strftime('%B %Y')}",
+                    status='Imported'
+                )
+
+                # Accumulators for Credits
+                credits_map = {
+                    "Employee Share of PF Payable": 0.0,
+                    "Employer Share of PF Payable": 0.0,
+                    "Employee Share of ESIC Payable": 0.0,
+                    "Employer Share of ESIC Payable": 0.0,
+                    "Professional Tax Payable": 0.0,
+                    "TDS on Salary Payable": 0.0,
+                    "Salary Payable": 0.0
+                }
+                
+                has_rows = False
+
+                for row_num, row in enumerate(reader, start=2):
+                    # Skip empty rows (check if Segment is present)
+                    if not row.get(col_map.get('segment', '')):
+                        continue
+                        
+                    has_rows = True
+                    result.total_rows += 1
+                    
+                    try:
+                        # 1. Parse Amounts
+                        base_amount = self._parse_float(row.get(col_map.get('amount', ''), '0'))
+                        employer_pf = self._parse_float(row.get(col_map.get('employer_pf', ''), '0'))
+                        employer_esic = self._parse_float(row.get(col_map.get('employer_esic', ''), '0'))
+                        
+                        # 2. Calculate Debit Cost (CTC = Base + Employer Contributions)
+                        total_cost_debit = base_amount + employer_pf + employer_esic
+                        
+                        # 3. Add Debit Entry (Specific to this row's Segment)
+                        segment = row.get(col_map.get('segment', ''), '')
+                        jv.add_debit(
+                            ledger="Salary & Wages",
+                            amount=total_cost_debit,
+                            subcode=segment  # Tagging segment
+                        )
+                        
+                        # 4. Accumulate Credits
+                        credits_map["Employee Share of PF Payable"] += self._parse_float(row.get(col_map.get('emp_pf', ''), '0'))
+                        credits_map["Employer Share of PF Payable"] += employer_pf
+                        credits_map["Employee Share of ESIC Payable"] += self._parse_float(row.get(col_map.get('emp_esic', ''), '0'))
+                        credits_map["Employer Share of ESIC Payable"] += employer_esic
+                        credits_map["Professional Tax Payable"] += self._parse_float(row.get(col_map.get('pt', ''), '0'))
+                        credits_map["TDS on Salary Payable"] += self._parse_float(row.get(col_map.get('tds', ''), '0'))
+                        credits_map["Salary Payable"] += self._parse_float(row.get(col_map.get('net_payable', ''), '0'))
+                        
+                        result.successful_rows += 1
+                        
+                    except Exception as e:
+                        result.add_error(row_num, 'PARSE_ERROR', str(e))
+                
+                if has_rows:
+                    # Add Consolidated Credit Entries
+                    for ledger, amount in credits_map.items():
+                        if amount > 0:
+                            jv.add_credit(ledger, amount)
+                    
+                    vouchers.append(jv)
+                else:
+                    result.status = ImportStatus.FAILED
+                    result.add_error(0, 'NO_DATA', "No valid data rows found")
+
+                # Mock preview data
+                f.seek(0)
+                result.preview_data = [row for row in csv.DictReader(data_lines)][:10]
+
         except Exception as e:
             result.status = ImportStatus.FAILED
             result.add_error(0, 'FILE_ERROR', str(e))

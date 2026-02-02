@@ -36,6 +36,7 @@ class MasterData:
     narrations: List[Narration] = field(default_factory=list)
     segments: List[Segment] = field(default_factory=list)
     settings: MasterDataSettings = field(default_factory=MasterDataSettings)
+    vendors: List[dict] = field(default_factory=list)
     
     def get_account_heads_by_type(self, voucher_type: VoucherType) -> List[AccountHead]:
         """

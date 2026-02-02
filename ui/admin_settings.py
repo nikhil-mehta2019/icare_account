@@ -51,6 +51,10 @@ class MasterEditDialog(QDialog):
             if required:
                 label = f"{label} *"
             
+            # 1. Create the styled label
+            label_widget = QLabel(label + ":")
+            label_widget.setStyleSheet("color: #333333; font-weight: bold;") # Force dark color
+
             if field_type == "text":
                 input_widget = QLineEdit()
                 input_widget.setText(str(self.data.get(key, "")))
@@ -74,7 +78,8 @@ class MasterEditDialog(QDialog):
                 input_widget.setMinimumHeight(32)
             
             self.inputs[key] = input_widget
-            form_layout.addRow(label + ":", input_widget)
+            #form_layout.addRow(label + ":", input_widget)
+            form_layout.addRow(label_widget, input_widget)
         
         layout.addLayout(form_layout)
         
@@ -336,6 +341,10 @@ class AdminSettingsTab(QWidget):
         # Tab 6: GST/TDS Config
         tax_tab = self._create_tax_config_tab()
         tabs.addTab(tax_tab, "GST/TDS")
+
+        # Tab 7: Vendors
+        vendors_tab = self._create_vendors_tab()
+        tabs.addTab(vendors_tab, "Vendors")
         
         return tabs
     
@@ -721,6 +730,7 @@ class AdminSettingsTab(QWidget):
         self._refresh_products_table()
         self._refresh_franchises_table()
         self._refresh_pos_table()
+        self._refresh_vendors_table()
     
     def _refresh_tally_heads_table(self):
         """Refresh Tally Heads table."""
@@ -1199,3 +1209,88 @@ class AdminSettingsTab(QWidget):
                 self._refresh_pos_table()
                 self.settings_changed.emit()
                 QMessageBox.information(self, "Success", f"Home State set to '{code}'.\n\nGST will now calculate CGST+SGST for this state, IGST for others.")
+
+    def _create_vendors_tab(self) -> QWidget:
+            """Create the Vendors management tab."""
+            widget = QWidget()
+            layout = QVBoxLayout(widget)
+            layout.setSpacing(10)
+            layout.setContentsMargins(8, 8, 8, 8)
+            
+            info = QLabel("Manage Vendors. New vendors typed in Voucher Entry are auto-added here.")
+            info.setStyleSheet(Styles.get_helper_text_style())
+            layout.addWidget(info)
+            
+            toolbar = self._create_master_table_toolbar(
+                self._add_vendor,
+                self._edit_vendor,
+                self._disable_vendor
+            )
+            layout.addLayout(toolbar)
+            
+            self.vendors_table = QTableWidget()
+            self.vendors_table.setMinimumHeight(280)
+            self.vendors_table.setAlternatingRowColors(True)
+            self.vendors_table.setSelectionBehavior(QTableWidget.SelectRows)
+            self.vendors_table.setEditTriggers(QTableWidget.NoEditTriggers)
+            
+            headers = ["Name", "GSTIN", "Contact", "Active"]
+            self.vendors_table.setColumnCount(len(headers))
+            self.vendors_table.setHorizontalHeaderLabels(headers)
+            self.vendors_table.horizontalHeader().setStretchLastSection(True)
+            
+            layout.addWidget(self.vendors_table)
+            
+            return widget
+    
+    def _add_vendor(self):
+        fields = [
+            {"key": "name", "label": "Vendor Name", "type": "text", "required": True},
+            {"key": "gstin", "label": "GSTIN", "type": "text"},
+            {"key": "contact_person", "label": "Contact Person", "type": "text"},
+            {"key": "isActive", "label": "Active", "type": "bool"}
+        ]
+        dialog = MasterEditDialog("Add Vendor", fields, {"isActive": True}, self)
+        if dialog.exec() == QDialog.Accepted:
+            data = dialog.get_data()
+            if self.config.add_vendor(data):
+                self._refresh_vendors_table()
+                self.settings_changed.emit()
+
+    def _edit_vendor(self):
+        selected = self.vendors_table.selectedItems()
+        if not selected: return
+        row = selected[0].row()
+        data = self.vendors_table.item(row, 0).data(Qt.UserRole)
+        
+        fields = [
+            {"key": "name", "label": "Vendor Name", "type": "text", "required": True},
+            {"key": "gstin", "label": "GSTIN", "type": "text"},
+            {"key": "contact_person", "label": "Contact Person", "type": "text"},
+            {"key": "isActive", "label": "Active", "type": "bool"}
+        ]
+        dialog = MasterEditDialog("Edit Vendor", fields, data, self)
+        if dialog.exec() == QDialog.Accepted:
+            if self.config.update_vendor(data["name"], dialog.get_data()):
+                self._refresh_vendors_table()
+                self.settings_changed.emit()
+
+    def _disable_vendor(self):
+        selected = self.vendors_table.selectedItems()
+        if not selected: return
+        row = selected[0].row()
+        name = self.vendors_table.item(row, 0).text()
+        if self.config.delete_vendor(name):
+            self._refresh_vendors_table()
+            self.settings_changed.emit()
+
+    def _refresh_vendors_table(self):
+        self.vendors_table.setRowCount(0)
+        for v in self.config.get_all_vendors_raw():
+            row = self.vendors_table.rowCount()
+            self.vendors_table.insertRow(row)
+            self.vendors_table.setItem(row, 0, QTableWidgetItem(v.get("name", "")))
+            self.vendors_table.setItem(row, 1, QTableWidgetItem(v.get("gstin", "")))
+            self.vendors_table.setItem(row, 2, QTableWidgetItem(v.get("contact_person", "")))
+            self.vendors_table.setItem(row, 3, QTableWidgetItem("Yes" if v.get("isActive") else "No"))
+            self.vendors_table.item(row, 0).setData(Qt.UserRole, v)
