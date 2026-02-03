@@ -103,9 +103,22 @@ class DataService:
         self.save_vouchers()
     
     def add_vouchers_bulk(self, vouchers: List[Voucher]) -> None:
-        """Add multiple vouchers at once."""
-        self.load_vouchers()  # Ensure loaded
-        self._vouchers.extend(vouchers)
+        """Add multiple vouchers at once, converting them to dictionaries for storage."""
+        self.load_vouchers()  # Ensure existing data is loaded
+        
+        # FIX: Convert Voucher objects to dictionaries before adding
+        # This ensures they match the format of loaded JSON data and can be saved.
+        voucher_dicts = []
+        for v in vouchers:
+            if hasattr(v, 'to_dict'):
+                voucher_dicts.append(v.to_dict())
+            elif isinstance(v, dict):
+                voucher_dicts.append(v)
+            else:
+                # Fallback if neither (unlikely if strictly typed)
+                voucher_dicts.append(v.__dict__)
+
+        self._vouchers.extend(voucher_dicts)
         self.save_vouchers()
     
     def update_voucher(self, voucher: Voucher) -> bool:

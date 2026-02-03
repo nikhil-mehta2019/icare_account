@@ -139,7 +139,92 @@
       "invoice_date": "2026-02-02",
       "from_date": null,
       "to_date": null
+    },
+    {
+      "voucher_id": "3b5a3ed3-a7ee-4e0f-9cf5-4eab31622c0a",
+      "date": "2026-02-03T12:37:18.379320",
+      "voucher_type": "Credit",
+      "account_code": "",
+      "account_name": "",
+      "amount": 0.0,
+      "segment": "",
+      "narration": "Payroll Cost for February 2026",
+      "reference_id": null,
+      "status": "Draft",
+      "created_at": "2026-02-03T12:19:07.649857",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "f948ef68-413b-4827-af20-101eee83e3a1",
+      "voucher_type": "Journal",
+      "voucher_no": "PAYROLL-FEB2026",
+      "voucher_date": "2026-02-02T00:00:00",
+      "entries": [
+        {
+          "ledger": "Salary & Wages",
+          "ledger_subcode": "Placement",
+          "is_debit": true,
+          "amount": 578750.0
+        },
+        {
+          "ledger": "Salary & Wages",
+          "ledger_subcode": "Corporate",
+          "is_debit": true,
+          "amount": 1120000.0
+        },
+        {
+          "ledger": "Employee Share of PF Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 180000.0
+        },
+        {
+          "ledger": "Employer Share of PF Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 180000.0
+        },
+        {
+          "ledger": "Employee Share of ESIC Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 3750.0
+        },
+        {
+          "ledger": "Employer Share of ESIC Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 18750.0
+        },
+        {
+          "ledger": "Professional Tax Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 7000.0
+        },
+        {
+          "ledger": "TDS on Salary Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 100000.0
+        },
+        {
+          "ledger": "Salary Payable",
+          "ledger_subcode": "",
+          "is_debit": false,
+          "amount": 1209250.0
+        }
+      ],
+      "narration": "Payroll Cost for February 2026",
+      "status": "Imported",
+      "created_at": "2026-02-03T12:37:30.543572"
     }
   ],
-  "last_modified": "2026-02-02T19:02:24.715101"
+  "last_modified": "2026-02-03T12:43:05.677241"
 }

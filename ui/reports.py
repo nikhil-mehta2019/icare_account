@@ -21,8 +21,9 @@ class ReportsTab(QWidget):
     def __init__(self, data_service: DataService, parent=None):
         super().__init__(parent)
         self.data_service = data_service
-        self.tally_service = TallyService()
-        self.mis_service = MISService()
+        # FIX: Pass data_service to constructors to satisfy dependency
+        self.tally_service = TallyService(self.data_service)
+        self.mis_service = MISService(self.data_service)
         
         self._setup_ui()
         self._connect_signals()
@@ -377,7 +378,8 @@ class ReportsTab(QWidget):
                 QMessageBox.warning(self, "No Data", "No vouchers found for the selected date range.")
                 return
             
-            result = self.tally_service.generate_tally_xml(vouchers, filepath, start, end)
+            # FIX: Call generate_xml directly on the generator, which supports list passing
+            result = self.tally_service.generator.generate_xml(vouchers, filepath)
             
             self.progress_bar.setVisible(False)
             
