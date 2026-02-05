@@ -14,13 +14,13 @@ from services.tally_service import TallyService
 from services.mis_service import MISService
 from .styles import Styles
 
-
 class ReportsTab(QWidget):
     """Reports generation interface for MIS Excel and Tally XML."""
     
     def __init__(self, data_service: DataService, parent=None):
         super().__init__(parent)
         self.data_service = data_service
+        
         # FIX: Pass data_service to constructors to satisfy dependency
         self.tally_service = TallyService(self.data_service)
         self.mis_service = MISService(self.data_service)
@@ -378,7 +378,7 @@ class ReportsTab(QWidget):
                 QMessageBox.warning(self, "No Data", "No vouchers found for the selected date range.")
                 return
             
-            # FIX: Call generate_xml directly on the generator, which supports list passing
+            # FIX: Use the generator to create the XML
             result = self.tally_service.generator.generate_xml(vouchers, filepath)
             
             self.progress_bar.setVisible(False)

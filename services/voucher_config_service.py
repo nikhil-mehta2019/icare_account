@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from models.master_data import MasterData
+from services.data_service import DataService
 
 @dataclass
 class TallyHead:
@@ -67,6 +68,7 @@ class VoucherConfigService:
         self._config: Dict = {}
         self._loaded = False
         self.master_data = None
+        self.data_service = DataService()
         self.load_config()
     
     def load_config(self) -> bool:
@@ -87,9 +89,17 @@ class VoucherConfigService:
                     self._loaded = True
                     return True
             
+                # Create default config if not found
+                self._config = self._get_default_config()
+                self.master_data = MasterData.from_dict(self._config)
+                self.data_service._master_data = self.master_data
+                self._loaded = True
+                return True
+            
             # Create default config if not found
             self._config = self._get_default_config()
             self.master_data = MasterData.from_dict(self._config)
+            self.data_service._master_data = self.master_data
             self._loaded = True
             return True
             
@@ -436,27 +446,19 @@ class VoucherConfigService:
     
     def save_config(self) -> bool:
         """Save current configuration to JSON file."""
+       # Save both to local config file AND via DataService
         try:
-            # Try multiple paths
-            paths_to_try = [
-                self.CONFIG_PATH,
-                os.path.join(os.path.dirname(__file__), '..', self.CONFIG_PATH),
-                os.path.join(os.path.dirname(__file__), '..', 'data', 'voucher_config.json'),
-            ]
+            self._config["lastModified"] = datetime.now().strftime("%Y-%m-%d")
+            # Update master_data object from _config dict
+            if self.master_data:
+                # Basic sync - for full robustness update individual fields
+                self.data_service.save_master_data()
             
-            for path in paths_to_try:
-                dir_path = os.path.dirname(path)
-                if os.path.exists(dir_path):
-                    # Update last modified
-                    self._config["lastModified"] = datetime.now().strftime("%Y-%m-%d")
-                    
-                    with open(path, 'w', encoding='utf-8') as f:
-                        json.dump(self._config, f, indent=2, ensure_ascii=False)
-                    return True
-            
-            return False
+            with open(self.CONFIG_PATH, 'w', encoding='utf-8') as f:
+                json.dump(self._config, f, indent=2, ensure_ascii=False)
+            return True
         except Exception as e:
-            print(f"Error saving voucher config: {e}")
+            print(f"Error saving config: {e}")
             return False
     
     def get_all_tally_heads_raw(self) -> List[Dict]:

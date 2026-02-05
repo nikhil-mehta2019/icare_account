@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from datetime import date as date_type, date as dt_date  # Aliases to avoid conflict
-from typing import Optional
+from typing import Optional, Dict, Any
 from enum import Enum
 import uuid
 
@@ -37,7 +37,7 @@ class Voucher:
     # === NEW FIELDS (Debit Support) ===
     party_name: Optional[str] = None
     invoice_no: Optional[str] = None
-    invoice_date: Optional[dt_date] = None  # Using alias 'dt_date'
+    invoice_date: Optional[dt_date] = None
     # ==================================
 
     # Period dates
@@ -72,17 +72,23 @@ class Voucher:
     
     def to_dict(self) -> dict:
         """Convert voucher to dictionary for serialization."""
+        
+        # FIX: Robustly handle status (Enum vs String) to prevent crashes
+        status_val = self.status
+        if hasattr(self.status, 'value'):
+            status_val = self.status.value
+            
         return {
             'voucher_id': self.voucher_id,
             'date': self.date.isoformat() if isinstance(self.date, datetime) else self.date,
-            'voucher_type': self.voucher_type.value,
+            'voucher_type': self.voucher_type.value if hasattr(self.voucher_type, 'value') else self.voucher_type,
             'account_code': self.account_code,
             'account_name': self.account_name,
             'amount': self.amount,
             'segment': self.segment,
             'narration': self.narration,
             'reference_id': self.reference_id,
-            'status': self.status.value,
+            'status': status_val,  # Using safe value here
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'created_by': self.created_by,
             'source': self.source,
@@ -113,17 +119,33 @@ class Voucher:
             try:
                 status = VoucherStatus(status)
             except ValueError:
-                status = VoucherStatus.DRAFT
+                # If value is valid string but not in enum keys (e.g. 'Pending Review')
+                # Try creating by value logic or fallback
+                found = False
+                for s in VoucherStatus:
+                    if s.value == status:
+                        status = s
+                        found = True
+                        break
+                if not found:
+                    status = VoucherStatus.DRAFT
 
         # Date parsing helpers
         def parse_datetime(val):
-            if isinstance(val, str): return datetime.fromisoformat(val)
+            if isinstance(val, str): 
+                try: return datetime.fromisoformat(val)
+                except: return datetime.now()
             return val or datetime.now()
 
         def parse_date(val):
-            if isinstance(val, str): return dt_date.fromisoformat(val)
+            if isinstance(val, str): 
+                try: return dt_date.fromisoformat(val)
+                except: return None
             return val
 
+        # Handle potential extra keys in data (safety)
+        valid_keys = cls.__annotations__.keys()
+        
         return cls(
             voucher_id=data.get('voucher_id', str(uuid.uuid4())),
             date=parse_datetime(data.get('date')),
@@ -139,11 +161,9 @@ class Voucher:
             created_by=data.get('created_by', 'System'),
             source=data.get('source', 'Manual'),
             
-            # === NEW FIELDS ===
             party_name=data.get('party_name'),
             invoice_no=data.get('invoice_no'),
             invoice_date=parse_date(data.get('invoice_date')),
-            # ==================
             
             from_date=parse_date(data.get('from_date')),
             to_date=parse_date(data.get('to_date'))

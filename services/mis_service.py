@@ -85,14 +85,14 @@ class MISService:
             'gross_margin': mis_data['total']['gross_margin']
         }
 
+    def _get_val(self, obj, attr, default=None):
+        """Safe accessor for Dict or Object."""
+        if isinstance(obj, dict):
+            return obj.get(attr, default)
+        return getattr(obj, attr, default)
+
     def _calculate_segment_metrics(self, vouchers: List[any], segment: str) -> Dict:
-        """
-        Calculate metrics for a specific segment.
-        Contains logic to handle:
-        1. New Journal Vouchers (Entries list)
-        2. New Purchase/Payroll Vouchers (Objects)
-        3. Legacy Vouchers (Dicts/Objects with Account Codes)
-        """
+        """Calculate metrics for a specific segment."""
         metrics = {
             'gmv': 0.0, 'returns': 0.0, 'net_revenue': 0.0,
             'direct_costs': 0.0, 'allocated_costs': 0.0,
@@ -103,67 +103,61 @@ class MISService:
 
         for v in vouchers:
             # ---------------------------------------------------------
-            # LOGIC TYPE A: New Journal Vouchers (Multiple Entries)
+            # LOGIC TYPE A: New Journal Vouchers (Entries list)
             # ---------------------------------------------------------
-            if hasattr(v, 'entries') and v.entries:
-                for entry in v.entries:
-                    # Check Segment Match on Subcode
-                    if entry.subcode and entry.subcode.lower().strip() == target_segment:
+            entries = self._get_val(v, 'entries')
+            if entries:
+                for entry in entries:
+                    # Safe access for Entry (could be dict or obj)
+                    subcode = self._get_val(entry, 'subcode', '')
+                    if subcode and str(subcode).lower().strip() == target_segment:
+                        ledger = self._get_val(entry, 'ledger', '')
+                        cr = float(self._get_val(entry, 'credit_amount', 0))
+                        dr = float(self._get_val(entry, 'debit_amount', 0))
+
                         # Logic: classify based on Ledger Name keywords or Debit/Credit
-                        if self._is_revenue(entry.ledger, is_credit=True):
-                            metrics['gmv'] += entry.credit_amount
-                        elif self._is_direct_cost(entry.ledger, is_debit=True):
-                            metrics['direct_costs'] += entry.debit_amount
+                        if self._is_revenue(ledger, is_credit=True):
+                            metrics['gmv'] += cr
+                        elif self._is_direct_cost(ledger, is_debit=True):
+                            metrics['direct_costs'] += dr
                         
-                        # Fallback: If pure Journal, Credit to Segment is usually Revenue, Debit is Cost
-                        elif entry.credit_amount > 0:
-                             metrics['gmv'] += entry.credit_amount
-                        elif entry.debit_amount > 0:
-                             metrics['direct_costs'] += entry.debit_amount
+                        # Fallback
+                        elif cr > 0: metrics['gmv'] += cr
+                        elif dr > 0: metrics['direct_costs'] += dr
 
             # ---------------------------------------------------------
-            # LOGIC TYPE B: New Purchase Vouchers (Object with Business Unit)
+            # LOGIC TYPE B: New Purchase Vouchers (Business Unit)
             # ---------------------------------------------------------
-            elif hasattr(v, 'business_unit') and v.business_unit:
-                if v.business_unit.lower().strip() == target_segment:
-                    # Purchases are usually Direct Costs
-                    if self._is_direct_cost(getattr(v, 'expense_ledger', ''), is_debit=True):
-                         metrics['direct_costs'] += v.base_amount
-                    else:
-                         metrics['direct_costs'] += v.base_amount # Default to direct cost for tagged purchase
-
-            # ---------------------------------------------------------
-            # LOGIC TYPE C: New Payroll Vouchers (Object with Salary Subcode)
-            # ---------------------------------------------------------
-            elif hasattr(v, 'salary_subcode') and v.salary_subcode:
-                 if v.salary_subcode.lower().strip() == target_segment:
-                      metrics['direct_costs'] += v.amount
-
-            # ---------------------------------------------------------
-            # LOGIC TYPE D: Legacy Vouchers (Dicts or Old Objects)
-            # ---------------------------------------------------------
-            else:
-                # Check Segment
-                v_seg = getattr(v, 'segment', '')
-                if isinstance(v, dict): v_seg = v.get('segment', '')
+            bu = self._get_val(v, 'business_unit')
+            if bu and str(bu).lower().strip() == target_segment:
+                exp_ledger = self._get_val(v, 'expense_ledger', '')
+                base_amt = float(self._get_val(v, 'base_amount', 0))
                 
-                if v_seg and str(v_seg).lower().strip() == target_segment:
-                    # Get Amount
-                    amt = getattr(v, 'amount', 0)
-                    if isinstance(v, dict): amt = v.get('amount', 0)
-                    
-                    # Get Identifiers for Logic
-                    v_type = str(getattr(v, 'voucher_type', '')).lower()
-                    if isinstance(v, dict): v_type = str(v.get('voucher_type', '')).lower()
-                    
-                    acc_name = getattr(v, 'account_name', '')
-                    if isinstance(v, dict): acc_name = v.get('account_name', '')
-                    
-                    # Apply Logic
-                    if self._is_revenue(acc_name) or 'receipt' in v_type or 'credit' in v_type:
-                        metrics['gmv'] += amt
-                    elif self._is_direct_cost(acc_name) or 'payment' in v_type or 'debit' in v_type:
-                         metrics['direct_costs'] += amt
+                if self._is_direct_cost(exp_ledger, is_debit=True):
+                     metrics['direct_costs'] += base_amt
+                else:
+                     metrics['direct_costs'] += base_amt 
+
+            # ---------------------------------------------------------
+            # LOGIC TYPE C: New Payroll Vouchers (Salary Subcode)
+            # ---------------------------------------------------------
+            sc = self._get_val(v, 'salary_subcode')
+            if sc and str(sc).lower().strip() == target_segment:
+                 metrics['direct_costs'] += float(self._get_val(v, 'amount', 0))
+
+            # ---------------------------------------------------------
+            # LOGIC TYPE D: Legacy Vouchers
+            # ---------------------------------------------------------
+            seg = self._get_val(v, 'segment')
+            if seg and str(seg).lower().strip() == target_segment:
+                amt = float(self._get_val(v, 'amount', 0))
+                v_type = str(self._get_val(v, 'voucher_type', '')).lower()
+                acc_name = self._get_val(v, 'account_name', '')
+                
+                if self._is_revenue(acc_name) or 'receipt' in v_type or 'credit' in v_type:
+                    metrics['gmv'] += amt
+                elif self._is_direct_cost(acc_name) or 'payment' in v_type or 'debit' in v_type:
+                     metrics['direct_costs'] += amt
         
         # Calculate Derived Metrics
         metrics['net_revenue'] = metrics['gmv'] - metrics['returns']
@@ -174,179 +168,106 @@ class MISService:
         return metrics
 
     def _is_revenue(self, ledger_name: str, is_credit: bool = False) -> bool:
-        """Determine if ledger represents revenue."""
         name = str(ledger_name).lower()
-        if any(k in name for k in self.revenue_keywords):
-            return True
-        # If no keyword match, rely on context (is_credit passed from caller)
+        if any(k in name for k in self.revenue_keywords): return True
         return False
 
     def _is_direct_cost(self, ledger_name: str, is_debit: bool = False) -> bool:
-        """Determine if ledger represents direct cost."""
         name = str(ledger_name).lower()
-        if any(k in name for k in self.direct_cost_keywords):
-            return True
-        return True # Default assumption for tagged debits in this context if not revenue
+        if any(k in name for k in self.direct_cost_keywords): return True
+        return True 
 
     def _calculate_margin(self, metrics: Dict):
-        """Helper to safely calculate gross margin percentage."""
         if metrics['net_revenue'] > 0:
             metrics['gross_margin'] = (metrics['gross_profit'] / metrics['net_revenue']) * 100
         else:
             metrics['gross_margin'] = 0.0
 
     def _filter_by_date(self, vouchers: List[any], start: datetime, end: datetime) -> List[any]:
-        """
-        Filter vouchers by date range.
-        Handles datetime, date objects, and strings robustly.
-        """
-        if not start and not end:
-            return vouchers
-            
+        if not start and not end: return vouchers
         filtered = []
         for v in vouchers:
-            # Extract date from object or dict
-            d = getattr(v, 'voucher_date', getattr(v, 'date', None))
-            if isinstance(v, dict) and not d:
-                d = v.get('voucher_date') or v.get('date')
+            # Safe date access
+            d = self._get_val(v, 'voucher_date') or self._get_val(v, 'date')
+            if not d: continue
             
-            if not d:
-                continue
-            
-            # Normalize to date object
             if isinstance(d, str):
-                try:
-                    d = datetime.strptime(d, "%Y-%m-%d").date()
-                except ValueError:
-                    continue # Skip invalid dates
+                try: d = datetime.strptime(d, "%Y-%m-%d").date()
+                except: continue
             elif isinstance(d, datetime):
                 d = d.date()
             
-            # Normalize constraints
             s = start.date() if isinstance(start, datetime) else start
             e = end.date() if isinstance(end, datetime) else end
             
-            # Compare
-            if s and d < s:
-                continue
-            if e and d > e:
-                continue
-                
+            if s and d < s: continue
+            if e and d > e: continue
             filtered.append(v)
-            
         return filtered
 
     def export_mis_excel(self, mis_data: Dict, output_path: str) -> str:
-        """
-        Export MIS report to Excel using XlsxWriter.
-        Preserves original detailed formatting logic.
-        """
         try:
             import xlsxwriter
-            
-            # Create workbook
             workbook = xlsxwriter.Workbook(output_path)
             worksheet = workbook.add_worksheet('MIS Report')
             
-            # --- Define Styles (Restoring Original Look) ---
-            header_format = workbook.add_format({
-                'bold': True,
-                'bg_color': '#00A4A6', # Teal header
-                'font_color': 'white',
-                'border': 1,
-                'align': 'center',
-                'valign': 'vcenter'
-            })
-            
-            metric_label_format = workbook.add_format({
-                'bold': True,
-                'border': 1,
-                'bg_color': '#f5f5f5'
-            })
-            
-            currency_format = workbook.add_format({
-                'num_format': '₹ #,##0.00',
-                'border': 1
-            })
-            
-            percent_format = workbook.add_format({
-                'num_format': '0.00%',
-                'border': 1,
-                'bold': True
-            })
-            
-            title_format = workbook.add_format({
-                'bold': True,
-                'font_size': 16,
-                'align': 'center',
-                'valign': 'vcenter'
-            })
+            # Formats
+            header_fmt = workbook.add_format({'bold': True, 'bg_color': '#00A4A6', 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'})
+            metric_label_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#f5f5f5'})
+            currency_fmt = workbook.add_format({'num_format': '₹ #,##0.00', 'border': 1})
+            percent_fmt = workbook.add_format({'num_format': '0.00%', 'border': 1, 'bold': True})
+            title_fmt = workbook.add_format({'bold': True, 'font_size': 16, 'align': 'center', 'valign': 'vcenter'})
 
-            # --- Write Structure ---
-            
-            # 1. Title
+            # Title
             segment_names = list(mis_data.get('segments', {}).keys())
-            total_cols = len(segment_names) + 2 # Label + Total + Segments
-            worksheet.merge_range(0, 0, 0, total_cols - 1, 
-                                'Management Accounting Dashboard (Segment-Wise)', title_format)
+            total_cols = len(segment_names) + 2 
+            worksheet.merge_range(0, 0, 0, total_cols - 1, 'Management Accounting Dashboard (Segment-Wise)', title_fmt)
             
-            # 2. Column Headers
+            # Headers
             headers = ['Metric', 'Total Company'] + segment_names
-            worksheet.set_row(2, 30) # Taller header row
-            for col_num, header in enumerate(headers):
-                worksheet.write(2, col_num, header, header_format)
+            worksheet.set_row(2, 30)
+            for col, header in enumerate(headers):
+                worksheet.write(2, col, header, header_fmt)
             
-            # 3. Data Rows
+            # Rows
             rows_config = [
-                ('GMV (Gross Sales)', 'gmv', currency_format),
-                ('Less: Returns/Refunds', 'returns', currency_format),
-                ('Net Revenue (A)', 'net_revenue', currency_format),
-                ('Direct Costs (Directly Tagged)', 'direct_costs', currency_format),
-                ('Allocated Shared Costs (Pool)', 'allocated_costs', currency_format),
-                ('Total Variable Cost (B)', 'total_variable_cost', currency_format),
-                ('GROSS PROFIT (A - B)', 'gross_profit', currency_format),
+                ('GMV (Gross Sales)', 'gmv', currency_fmt),
+                ('Less: Returns/Refunds', 'returns', currency_fmt),
+                ('Net Revenue (A)', 'net_revenue', currency_fmt),
+                ('Direct Costs (Directly Tagged)', 'direct_costs', currency_fmt),
+                ('Allocated Shared Costs (Pool)', 'allocated_costs', currency_fmt),
+                ('Total Variable Cost (B)', 'total_variable_cost', currency_fmt),
+                ('GROSS PROFIT (A - B)', 'gross_profit', currency_fmt),
                 ('Gross Margin %', 'gross_margin', percent_format)
             ]
             
-            start_row = 3
             for i, (label, key, fmt) in enumerate(rows_config):
-                current_row = start_row + i
+                row = 3 + i
+                worksheet.write(row, 0, label, metric_label_fmt)
                 
-                # Metric Name
-                worksheet.write(current_row, 0, label, metric_label_format)
-                
-                # Total Value
+                # Total
                 total_val = mis_data.get('total', {}).get(key, 0.0)
                 if key == 'gross_margin': total_val /= 100
-                worksheet.write(current_row, 1, total_val, fmt)
+                worksheet.write(row, 1, total_val, fmt)
                 
-                # Segment Values
-                for col_idx, seg in enumerate(segment_names, start=2):
-                    seg_val = mis_data.get('segments', {}).get(seg, {}).get(key, 0.0)
-                    if key == 'gross_margin': seg_val /= 100
-                    worksheet.write(current_row, col_idx, seg_val, fmt)
+                # Segments
+                for col, seg in enumerate(segment_names, start=2):
+                    val = mis_data.get('segments', {}).get(seg, {}).get(key, 0.0)
+                    if key == 'gross_margin': val /= 100
+                    worksheet.write(row, col, val, fmt)
 
-            # 4. Adjust Layout
-            worksheet.set_column(0, 0, 35) # Metric column width
-            worksheet.set_column(1, total_cols - 1, 18) # Value columns width
-            
+            worksheet.set_column(0, 0, 35)
+            worksheet.set_column(1, total_cols - 1, 18)
             workbook.close()
             return output_path
             
-        except ImportError:
-            # Fallback if XlsxWriter not installed
-            print("XlsxWriter not found, falling back to basic Pandas export")
+        except Exception as e:
+            # Fallback
             df_data = []
             for key in ['gmv', 'net_revenue', 'direct_costs', 'gross_profit']:
-                row = {'Metric': key}
-                row['Total'] = mis_data['total'][key]
+                row = {'Metric': key, 'Total': mis_data['total'][key]}
                 for seg, vals in mis_data['segments'].items():
                     row[seg] = vals[key]
                 df_data.append(row)
-            
-            df = pd.DataFrame(df_data)
-            df.to_excel(output_path, index=False)
+            pd.DataFrame(df_data).to_excel(output_path, index=False)
             return output_path
-        except Exception as e:
-            print(f"Export Error: {e}")
-            return None
