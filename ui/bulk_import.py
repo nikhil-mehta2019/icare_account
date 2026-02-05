@@ -141,7 +141,7 @@ class BulkImportTab(QWidget):
         self.preview_table = QTableWidget()
         # Full breakdown columns
         columns = [
-            "Date", "Segment", "Gross Amt", 
+            "Date", "Segment","Product Code", "Location", "Gross Amt", 
             "PF(Emp)", "PF(Empr)", 
             "ESIC(Emp)", "ESIC(Empr)", 
             "PT", "TDS", "Net Pay"
@@ -220,37 +220,43 @@ class BulkImportTab(QWidget):
             segment = get_val(["Business Segment", "Segment"])
             self.preview_table.setItem(r, 1, QTableWidgetItem(segment))
             
-            # 3. Gross Amount
+            # 3. Product Code 
+            self.preview_table.setItem(r, 2, QTableWidgetItem(get_val(["Product Code", "Product"])))
+
+            # 4. Location
+            self.preview_table.setItem(r, 3, QTableWidgetItem(get_val(["Location", "Loc"])))
+            
+            # 5. Gross Amount
             gross = get_val(["Amount", "Base Amount", "Gross"])
-            self.preview_table.setItem(r, 2, QTableWidgetItem(gross))
+            self.preview_table.setItem(r, 4, QTableWidgetItem(gross))
             
-            # 4. PF (Emp)
+            # 6. PF (Emp)
             pf_emp = get_val(["Employee Share of PF Payable", "PF Employee"])
-            self.preview_table.setItem(r, 3, QTableWidgetItem(pf_emp))
+            self.preview_table.setItem(r, 5, QTableWidgetItem(pf_emp))
             
-            # 5. PF (Empr)
+            # 7. PF (Empr)
             pf_empr = get_val(["Employer Share of PF Payable", "PF Employer"])
-            self.preview_table.setItem(r, 4, QTableWidgetItem(pf_empr))
+            self.preview_table.setItem(r, 6, QTableWidgetItem(pf_empr))
             
-            # 6. ESIC (Emp)
+            # 8. ESIC (Emp)
             esic_emp = get_val(["Employee Share of ESIC Payable", "ESIC Employee"])
-            self.preview_table.setItem(r, 5, QTableWidgetItem(esic_emp))
+            self.preview_table.setItem(r, 7, QTableWidgetItem(esic_emp))
             
-            # 7. ESIC (Empr)
+            # 9. ESIC (Empr)
             esic_empr = get_val(["Employer Share of ESIC Payable", "ESIC Employer"])
-            self.preview_table.setItem(r, 6, QTableWidgetItem(esic_empr))
+            self.preview_table.setItem(r, 8, QTableWidgetItem(esic_empr))
             
-            # 8. PT
+            # 10. PT
             pt = get_val(["Professional Tax Payable", "PT"])
-            self.preview_table.setItem(r, 7, QTableWidgetItem(pt))
+            self.preview_table.setItem(r, 9, QTableWidgetItem(pt))
             
-            # 9. TDS
+            # 11. TDS
             tds = get_val(["TDS on Salary Payable - FY 2026-27", "TDS on Salary Payable", "TDS"])
-            self.preview_table.setItem(r, 8, QTableWidgetItem(tds))
+            self.preview_table.setItem(r, 10, QTableWidgetItem(tds))
             
-            # 10. Net Pay
+            # 12. Net Pay
             net = get_val(["Salary Payable", "Net Salary", "Net Payable"])
-            self.preview_table.setItem(r, 9, QTableWidgetItem(net))
+            self.preview_table.setItem(r, 11, QTableWidgetItem(net))
 
     def _action_buttons(self):
         layout = QHBoxLayout()

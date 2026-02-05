@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QDate
 from PySide6.QtGui import QFont
 from datetime import datetime, date, timedelta
+from types import SimpleNamespace # Added for object creation
 
 from models.voucher import Voucher, VoucherStatus
 from models.account_head import VoucherType
@@ -137,6 +138,10 @@ class VoucherEntryTab(QWidget):
         
         # Initial Population
         self._populate_voucher_types()
+        # FIX: Force update of UI state based on default selections
+        self._on_pos_changed(self.pos_combo.currentIndex())
+        self._on_gst_app_changed(self.gst_app_combo.currentIndex())
+        self._update_gst_split()
     
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -853,7 +858,10 @@ class VoucherEntryTab(QWidget):
         self.narration_edit = QTextEdit()
         self.narration_edit.setMaximumHeight(60)
         self.narration_edit.setPlaceholderText("Enter transaction description / narration...")
+        # FIX: Added visible color style
         self.narration_edit.setStyleSheet(f"""
+            color: {Styles.PRIMARY};
+            background-color: #ffffff;
             font-size: 13px;
             padding: 8px;
             border: 1px solid {Styles.BORDER_MEDIUM};
@@ -993,7 +1001,7 @@ class VoucherEntryTab(QWidget):
                 font-size: 14px;
                 font-weight: 700;
             }}
-            QPushButton:hover {{ background-color: #43A047; }}
+            QPushButton:hover {{ background-color: {Styles.SUCCESS}; }}
         """)
         self.confirm_btn.setFixedHeight(44)
         confirm_row.addWidget(self.confirm_btn)
@@ -1020,7 +1028,7 @@ class VoucherEntryTab(QWidget):
                 font-size: 13px;
                 font-weight: 600;
             }}
-            QPushButton:hover {{ background-color: #E53935; }}
+            QPushButton:hover {{ background-color: {Styles.ERROR}; }}
         """)
         self.reset_btn.setFixedHeight(38)
         layout.addWidget(self.reset_btn)
@@ -1218,10 +1226,10 @@ class VoucherEntryTab(QWidget):
         self.vendor_combo.clear()
         self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
         
-        # In real app, fetch from self.data_service.get_all_vendors()
-        sample_vendors = ["Vendor A", "Vendor B", "Office Supplies Co", "Tech Solutions Ltd"]
-        for v in sample_vendors:
-            self.vendor_combo.addItem(v, v)
+        # Load from Config Service
+        vendors = self.config.get_all_vendors()
+        for v in vendors:
+            self.vendor_combo.addItem(v['name'], v['name'])
     
     # === Event Handlers ===
     
@@ -1471,7 +1479,6 @@ class VoucherEntryTab(QWidget):
     def _validate_step1(self) -> bool:
         if not self.tally_head_combo.currentData():
             return False
-        # Add basic date validation here if needed
         return True
     
     def _validate_step2(self) -> bool:
@@ -1565,9 +1572,6 @@ class VoucherEntryTab(QWidget):
             if vendor_name.lower() not in existing:
                 # It's new! Save to Master Data
                 self.config.add_vendor({"name": vendor_name, "isActive": True})
-                # (Optional) Reload combo to include the new item cleanly
-                # self._populate_vendors() 
-                # self.vendor_combo.setCurrentText(vendor_name)
         # ============================
         self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
         self._step_data['invoice_no'] = self.invoice_no_input.text()
@@ -1600,7 +1604,6 @@ class VoucherEntryTab(QWidget):
              total_dr += taxable
              
              # 2. Dr Input GST (Only if NOT RCM)
-             # If RCM, GST is not booked on the purchase voucher itself usually
              if gst > 0 and not is_rcm:
                  self._add_preview_row("Input GST", f"₹{gst:,.2f}", "", "GST")
                  total_dr += gst
@@ -1610,7 +1613,7 @@ class VoucherEntryTab(QWidget):
              self._add_preview_row(vendor_display, "", f"₹{net:,.2f}", "Party")
              total_cr += net
              
-             # 4. Cr TDS (Missing in previous code)
+             # 4. Cr TDS
              if tds > 0:
                  self._add_preview_row("TDS Payable", "", f"₹{tds:,.2f}", "TDS / WHT")
                  total_cr += tds
@@ -1636,7 +1639,6 @@ class VoucherEntryTab(QWidget):
         self.preview_total_dr.setText(f"Total Dr: ₹{total_dr:,.2f}")
         self.preview_total_cr.setText(f"Total Cr: ₹{total_cr:,.2f}")
         
-        # Color validation (Green if balanced, Red if mismatch)
         if abs(total_dr - total_cr) < 0.01:
             color = Styles.SUCCESS
         else:
@@ -1655,12 +1657,10 @@ class VoucherEntryTab(QWidget):
 
     def _on_confirm(self):
         try:
-            # Prepare optional fields
             vendor = self._step_data.get('vendor_name')
             inv_no = self._step_data.get('invoice_no')
             inv_date = self._step_data.get('invoice_date')
             
-            # If Credit, ensure these are None
             if self._voucher_type == "credit":
                 vendor = None
                 inv_no = None
@@ -1675,12 +1675,43 @@ class VoucherEntryTab(QWidget):
                 reference_id=self._step_data.get('voucher_code', ''),
                 status=VoucherStatus.PENDING_REVIEW,
                 
-                # === PASS NEW FIELDS HERE ===
                 party_name=vendor,
                 invoice_no=inv_no,
                 invoice_date=inv_date
-                # ============================
             )
+            
+            # === FIX FOR REVIEW TAB COMPATIBILITY ===
+            # Explicitly save Tally Head Name for Review Screen
+            v.tally_head = self._step_data.get('head_name')
+            v.account_name = self._step_data.get('head_name')
+            
+            # Save breakdown for Pop-up Table
+            v.base_amount = self._step_data.get('taxable', 0.0)
+            v.net_payable = self._step_data.get('net_payable', 0.0)
+            
+            if self._voucher_type == "debit":
+                v.expense_ledger = self._step_data.get('head_name')
+                v.supplier_ledger = self._step_data.get('vendor_name')
+            else:
+                v.party_ledger = "Cash/Bank"
+                v.expense_ledger = self._step_data.get('head_name') # Income ledger
+
+            # Construct GST Object for Review Screen
+            gst_amt = self._step_data.get('gst_amount', 0.0)
+            if gst_amt > 0:
+                v.gst = SimpleNamespace()
+                v.gst.cgst_amount = gst_amt / 2 # simplified split
+                v.gst.sgst_amount = gst_amt / 2
+                v.gst.igst_amount = 0.0 
+                # Note: Real app should check POS state here, but simplified is usually ok for view
+            
+            # Construct TDS Object for Review Screen
+            tds_amt = self._step_data.get('tds_amount', 0.0)
+            if tds_amt > 0:
+                v.tds = SimpleNamespace()
+                v.tds.amount = tds_amt
+                v.tds.ledger_name = self.tds_ledger_combo.currentText()
+            # ========================================
             
             self.data_service.add_voucher(v)
             QMessageBox.information(self, "Success", "Voucher saved successfully!")

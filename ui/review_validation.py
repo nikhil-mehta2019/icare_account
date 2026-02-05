@@ -4,15 +4,344 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QGroupBox, QFrame, QMessageBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QScrollArea,
-    QAbstractItemView
+    QAbstractItemView, QDialog, QFormLayout, QTextEdit, QLineEdit
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QBrush
+from PySide6.QtGui import QColor, QBrush, QFont
 from datetime import datetime
 
 from services.data_service import DataService
 from .styles import Styles
 
+# --- NEW CLASS: Voucher Detail Pop-up ---
+class VoucherDetailDialog(QDialog):
+    """Pop-up window to view full voucher details with Accounting Entry Table."""
+    def __init__(self, voucher, parent=None):
+        super().__init__(parent)
+        
+        # Robust Title
+        v_id = self._get_safe_val(voucher, 'voucher_id') or self._get_safe_val(voucher, 'voucher_no')
+        self.setWindowTitle(f"Voucher Details - {v_id}")
+        self.setMinimumSize(850, 700)
+        
+        # Styles: White Background, Blue Text
+        self.setStyleSheet(f"""
+            QDialog {{ background-color: white; }}
+            QWidget {{ background-color: white; color: {Styles.PRIMARY}; }}
+            
+            QLabel {{
+                color: {Styles.PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+            }}
+            
+            QLineEdit {{ 
+                background-color: white; 
+                color: {Styles.PRIMARY}; 
+                border: 1px solid #ccc; 
+                border-radius: 4px; 
+                padding: 6px;
+            }}
+            
+            QTextEdit {{
+                background-color: white; 
+                color: {Styles.PRIMARY};
+                border: 1px solid #ccc; 
+                border-radius: 4px; 
+                padding: 6px;
+            }}
+            
+            QTableWidget {{
+                background-color: white; 
+                color: {Styles.PRIMARY};
+                gridline-color: #e0e0e0; 
+                border: 1px solid #ccc;
+            }}
+            
+            QHeaderView::section {{
+                background-color: #f8f9fa; 
+                color: {Styles.PRIMARY};
+                font-weight: bold; 
+                border: 1px solid #ddd; 
+                padding: 6px;
+            }}
+            
+            QPushButton {{ 
+                background-color: {Styles.SECONDARY}; 
+                color: white; 
+                border-radius: 4px; 
+                padding: 8px 16px; 
+                font-weight: bold; 
+            }}
+            QPushButton:hover {{ background-color: #333; }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        
+        # Scroll Area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("border: none;") 
+        
+        content_widget = QWidget()
+        form_layout = QVBoxLayout(content_widget)
+        form_layout.setSpacing(15)
+        form_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # --- SECTION 1: Header Info ---
+        header_group = QGroupBox("General Information")
+        header_group.setStyleSheet(f"QGroupBox {{ border: 1px solid #ddd; margin-top: 10px; }} QGroupBox::title {{ color: {Styles.PRIMARY}; top: -10px; left: 10px; }}")
+        header_layout = QFormLayout(header_group)
+        header_layout.setSpacing(10)
+
+        # Parsing Logic for Product/Location from Narration (Payroll)
+        narration_text = (
+            self._get_safe_val(voucher, 'narration') or 
+            self._get_safe_val(voucher, 'remarks') or 
+            self._get_safe_val(voucher, 'description') or 
+            self._get_safe_val(voucher, 'notes')
+        )
+        
+        product = ""
+        location = ""
+        if narration_text.startswith("Payroll |"):
+            parts = narration_text.split("|")
+            if len(parts) > 2:
+                product = parts[1].strip()
+                location = parts[2].strip()
+
+        # Display Fields
+        def add_row(label, value):
+            field = QLineEdit(str(value))
+            field.setReadOnly(True)
+            header_layout.addRow(QLabel(label + ":"), field)
+
+        add_row("Voucher ID", v_id)
+        
+        v_date = self._get_safe_val(voucher, 'voucher_date')
+        if not v_date: v_date = self._get_safe_val(voucher, 'date')
+        add_row("Date", v_date)
+        
+        v_type = self._get_safe_val(voucher, 'voucher_type')
+        add_row("Type", v_type)
+        
+        if product: add_row("Product", product)
+        if location: add_row("Location", location)
+
+        # Account Logic (FIX: prioritize tally_head for Manual Entries)
+        acc_name = "Unknown"
+        if hasattr(voucher, 'tally_head') and voucher.tally_head: acc_name = voucher.tally_head
+        elif hasattr(voucher, 'supplier_ledger') and voucher.supplier_ledger: acc_name = voucher.supplier_ledger
+        elif hasattr(voucher, 'party_ledger') and voucher.party_ledger: acc_name = voucher.party_ledger
+        elif hasattr(voucher, 'entries') and voucher.entries: acc_name = "Multi-Entry Journal"
+        elif hasattr(voucher, 'ledger_name') and voucher.ledger_name: acc_name = voucher.ledger_name
+        else: acc_name = self._get_safe_val(voucher, 'account_name', 'Unknown')
+        add_row("Account", acc_name)
+        
+        form_layout.addWidget(header_group)
+
+        # --- SECTION 2: Accounting Entry Table ---
+        lbl_table = QLabel("Accounting Entry")
+        lbl_table.setStyleSheet(f"font-size: 15px; text-decoration: underline; margin-top: 10px;")
+        form_layout.addWidget(lbl_table)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Ledger", "Dr. Amount", "Cr. Amount"])
+        
+        # Read-only Table
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setFocusPolicy(Qt.NoFocus)
+        self.table.setSelectionMode(QAbstractItemView.NoSelection)
+        
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)     
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        
+        self.table.setMinimumHeight(250)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
+        self.table.setStyleSheet(f"alternate-background-color: #f9f9f9; background-color: white; color: {Styles.PRIMARY};")
+        
+        # Populate Table Logic
+        self._populate_accounting_table(voucher, narration_text)
+        form_layout.addWidget(self.table)
+
+        # --- SECTION 3: Full Narration ---
+        lbl_narr = QLabel("Narration")
+        form_layout.addWidget(lbl_narr)
+        
+        narr_box = QTextEdit(narration_text)
+        narr_box.setReadOnly(True)
+        narr_box.setMaximumHeight(60)
+        # Force Text Color for Narration Box
+        narr_box.setStyleSheet(f"color: {Styles.PRIMARY}; background-color: white; border: 1px solid #ccc;")
+        form_layout.addWidget(narr_box)
+
+        scroll.setWidget(content_widget)
+        layout.addWidget(scroll)
+        
+        # Close Button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        close_btn.setMinimumHeight(40)
+        layout.addWidget(close_btn)
+
+    def _populate_accounting_table(self, voucher, narration):
+        """
+        Parses data to build the Ledger | Dr | Cr table.
+        FIX: Prioritizes 'tally_head' attribute for displaying Selected Tally Head.
+        """
+        rows = []
+        
+        # Helper to get float amount safely
+        def get_amt(attr, obj=voucher):
+            if isinstance(obj, dict): val = obj.get(attr, 0)
+            else: val = getattr(obj, attr, 0)
+            try: return float(val) if val else 0.0
+            except: return 0.0
+
+        main_amount = get_amt('amount') or get_amt('total_amount')
+        
+        # Clean narration for display
+        clean_narr = " ".join(narration.split()) if narration else ""
+        narr_suffix = f"\n({clean_narr})" if clean_narr else ""
+
+        # --- CASE 1: BULK IMPORT (Payroll String) ---
+        if "Payroll |" in narration or "PF(Emp):" in narration:
+            
+            def get_val(key):
+                try:
+                    start = narration.find(key)
+                    if start == -1: return 0.0
+                    sub = narration[start + len(key):]
+                    val_str = sub.split('|')[0].strip()
+                    return float(val_str) if val_str else 0.0
+                except:
+                    return 0.0
+
+            pf_emp = get_val("PF(Emp):")
+            pf_empr = get_val("PF(Empr):")
+            esic_emp = get_val("ESIC(Emp):")
+            esic_empr = get_val("ESIC(Empr):")
+            pt = get_val("PT:")
+            tds = get_val("TDS:")
+            
+            total_debit = main_amount + pf_emp + pf_empr + esic_emp + esic_empr + pt + tds
+            
+            rows.append((f"Salary & Wages{narr_suffix}", total_debit, 0))
+            
+            if pf_emp > 0.01: rows.append((f"Employee Share of PF Payable{narr_suffix}", 0, pf_emp))
+            if pf_empr > 0.01: rows.append((f"Employer Share of PF Payable{narr_suffix}", 0, pf_empr))
+            if esic_emp > 0.01: rows.append((f"Employee Share of ESIC Payable{narr_suffix}", 0, esic_emp))
+            if esic_empr > 0.01: rows.append((f"Employer Share of ESIC Payable{narr_suffix}", 0, esic_empr))
+            if pt > 0.01: rows.append((f"Professional Tax Payable{narr_suffix}", 0, pt))
+            if tds > 0.01: rows.append((f"TDS on Salary Payable - FY 2026-27{narr_suffix}", 0, tds))
+            
+            rows.append((f"Salary Payable{narr_suffix}", 0, abs(float(main_amount))))
+
+        # --- CASE 2: MANUAL PURCHASE VOUCHER ---
+        elif hasattr(voucher, 'supplier_ledger') and hasattr(voucher, 'expense_ledger'):
+            base = get_amt('base_amount') or main_amount
+            
+            # FIX: Check for 'tally_head' first, then 'expense_ledger'
+            exp_name = getattr(voucher, 'tally_head', '') or getattr(voucher, 'expense_ledger', '') or 'Expense Account'
+            rows.append((f"{exp_name}{narr_suffix}", base, 0))
+            
+            if hasattr(voucher, 'gst') and voucher.gst:
+                cgst = get_amt('cgst_amount', voucher.gst)
+                sgst = get_amt('sgst_amount', voucher.gst)
+                igst = get_amt('igst_amount', voucher.gst)
+                if cgst: rows.append((f"Input CGST{narr_suffix}", cgst, 0))
+                if sgst: rows.append((f"Input SGST{narr_suffix}", sgst, 0))
+                if igst: rows.append((f"Input IGST{narr_suffix}", igst, 0))
+
+            tds_amt = 0
+            if hasattr(voucher, 'tds') and voucher.tds:
+                tds_amt = get_amt('amount', voucher.tds)
+                if tds_amt > 0.01:
+                    ledger = getattr(voucher.tds, 'ledger_name', 'TDS Payable')
+                    rows.append((f"{ledger}{narr_suffix}", 0, tds_amt))
+            
+            # Check for name, fallback to 'Supplier'
+            supp_name = getattr(voucher, 'supplier_ledger', '') or 'Supplier Account'
+            rows.append((f"{supp_name}{narr_suffix}", 0, abs(float(main_amount))))
+
+        # --- CASE 3: MANUAL JOURNAL ---
+        elif (hasattr(voucher, 'entries') and voucher.entries) or (isinstance(voucher, dict) and 'entries' in voucher):
+            entries = voucher.entries if hasattr(voucher, 'entries') else voucher['entries']
+            for e in entries:
+                if isinstance(e, dict):
+                    # FIX: Check for tally_head in dict keys
+                    lbl = e.get('tally_head') or e.get('ledger') or e.get('ledger_name') or 'Unknown Ledger'
+                    dr = float(e.get('debit_amount', 0))
+                    cr = float(e.get('credit_amount', 0))
+                else:
+                    # FIX: Check for tally_head attribute
+                    lbl = getattr(e, 'tally_head', None) or getattr(e, 'ledger', None) or getattr(e, 'ledger_name', None) or 'Unknown Ledger'
+                    dr = float(getattr(e, 'debit_amount', 0))
+                    cr = float(getattr(e, 'credit_amount', 0))
+                
+                rows.append((f"{lbl}{narr_suffix}", dr, cr))
+
+        # --- CASE 4: SIMPLE MANUAL ---
+        else:
+            # FIX: Check for tally_head, ledger_name, account_name
+            acc_name = getattr(voucher, 'tally_head', '') or self._get_safe_val(voucher, 'ledger_name') or self._get_safe_val(voucher, 'account_name') or 'General Ledger'
+            v_type = self._get_safe_val(voucher, 'voucher_type').lower()
+            
+            if 'debit' in v_type or 'payment' in v_type or 'purchase' in v_type:
+                rows.append((f"{acc_name}{narr_suffix}", main_amount, 0))
+                rows.append((f"Bank/Cash/Party{narr_suffix}", 0, main_amount))
+            elif 'credit' in v_type or 'receipt' in v_type:
+                rows.append((f"Bank/Cash/Party{narr_suffix}", main_amount, 0))
+                rows.append((f"{acc_name}{narr_suffix}", 0, main_amount))
+            else:
+                rows.append((f"{acc_name}{narr_suffix}", main_amount, 0))
+                rows.append((f"Suspense{narr_suffix}", 0, main_amount))
+
+        # Render Rows
+        self.table.setRowCount(len(rows))
+        for i, (ledger, dr, cr) in enumerate(rows):
+            # FIX: Explicitly set FOREGROUND COLOR to ensure it is visible
+            text_color = QBrush(QColor(Styles.PRIMARY)) # Blue
+            
+            # Ledger with Word Wrap (Read Only)
+            ledger_item = QTableWidgetItem(str(ledger))
+            ledger_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            ledger_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable) 
+            ledger_item.setForeground(text_color) 
+            self.table.setItem(i, 0, ledger_item)
+            
+            # Format Numbers
+            dr_txt = f"{dr:,.2f}" if dr > 0.01 else ""
+            cr_txt = f"{cr:,.2f}" if cr > 0.01 else ""
+            
+            dr_item = QTableWidgetItem(dr_txt)
+            dr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            dr_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            dr_item.setForeground(text_color) 
+            
+            cr_item = QTableWidgetItem(cr_txt)
+            cr_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            cr_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            cr_item.setForeground(text_color) 
+
+            self.table.setItem(i, 1, dr_item)
+            self.table.setItem(i, 2, cr_item)
+        
+        self.table.resizeRowsToContents()
+
+    def _get_safe_val(self, obj, attr, default=""):
+        """Helper to safely get attributes from Object or Dict."""
+        if isinstance(obj, dict):
+            return str(obj.get(attr, default))
+        val = getattr(obj, attr, default)
+        if hasattr(val, 'value'): return str(val.value)
+        return str(val)
+
+# --- MAIN TAB CLASS ---
 class ReviewValidationTab(QWidget):
     """
     Review and validation screen for vouchers.
@@ -189,7 +518,7 @@ class ReviewValidationTab(QWidget):
     
     def _create_grid_section(self) -> QGroupBox:
         """Create the voucher grid section."""
-        group = QGroupBox("VOUCHER LIST")
+        group = QGroupBox("VOUCHER LIST (Double-click for details)")
         layout = QVBoxLayout(group)
         layout.setContentsMargins(20, 25, 20, 20)
         
@@ -236,7 +565,23 @@ class ReviewValidationTab(QWidget):
         self.refresh_btn.clicked.connect(self.refresh_data)
         self.delete_btn.clicked.connect(self._on_delete_clicked)
         self.approve_all_btn.clicked.connect(self._on_approve_all_clicked)
+        
+        # FIX: Connect Double Click
+        self.voucher_table.cellDoubleClicked.connect(self._open_voucher_detail)
     
+    # FIX: Open Detail Dialog Logic
+    def _open_voucher_detail(self, row, column):
+        """Open popup with voucher details."""
+        item = self.voucher_table.item(row, 0)
+        if not item: return
+        
+        # Retrieve the FULL voucher object stored in UserRole
+        voucher = item.data(Qt.UserRole)
+        
+        if voucher:
+            dlg = VoucherDetailDialog(voucher, self)
+            dlg.exec()
+
     def refresh_data(self):
         """Refresh voucher data from data service."""
         try:
@@ -294,20 +639,24 @@ class ReviewValidationTab(QWidget):
                 v_no = self._get_voucher_attr(voucher, 'voucher_id', '') # Fallback
             self.voucher_table.setItem(row_idx, 2, QTableWidgetItem(str(v_no)))
             
-            # --- 4. LEDGER / NAME ---
+            # --- 4. LEDGER / NAME (FIX: Prioritize tally_head) ---
             name = "Unknown"
-            if hasattr(voucher, 'supplier_ledger') and voucher.supplier_ledger:
+            if hasattr(voucher, 'tally_head') and voucher.tally_head:
+                name = voucher.tally_head
+            elif hasattr(voucher, 'supplier_ledger') and voucher.supplier_ledger:
                 name = voucher.supplier_ledger
             elif hasattr(voucher, 'party_ledger') and voucher.party_ledger:
                 name = voucher.party_ledger
             elif hasattr(voucher, 'entries') and voucher.entries:
                  name = "Multiple (Journal)"
+            elif hasattr(voucher, 'ledger_name') and voucher.ledger_name:
+                name = voucher.ledger_name
             elif self._get_voucher_attr(voucher, 'account_name'):
                 name = self._get_voucher_attr(voucher, 'account_name')
             
             # Dict fallback
             if name == "Unknown" and isinstance(voucher, dict):
-                 name = voucher.get('supplier_ledger') or voucher.get('party_ledger') or voucher.get('account_name', 'Unknown')
+                 name = voucher.get('tally_head') or voucher.get('supplier_ledger') or voucher.get('party_ledger') or voucher.get('ledger_name') or voucher.get('account_name', 'Unknown')
 
             self.voucher_table.setItem(row_idx, 3, QTableWidgetItem(str(name)))
             
@@ -358,10 +707,8 @@ class ReviewValidationTab(QWidget):
             src = self._get_voucher_attr(voucher, 'source', 'Import')
             self.voucher_table.setItem(row_idx, 7, QTableWidgetItem(str(src)))
             
-            # Store ID in user data (use voucher_no as ID if voucher_id missing)
-            vid = self._get_voucher_attr(voucher, 'voucher_id')
-            if not vid: vid = v_no
-            self.voucher_table.item(row_idx, 0).setData(Qt.UserRole, vid)
+            # FIX: Store FULL OBJECT in Column 0 for Pop-up
+            self.voucher_table.item(row_idx, 0).setData(Qt.UserRole, voucher)
         
         self.voucher_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.voucher_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
@@ -474,13 +821,18 @@ class ReviewValidationTab(QWidget):
             # Find IDs to delete
             ids_to_delete = []
             for row in selected_rows:
-                # We stored ID in the UserRole of column 0
-                vid = self.voucher_table.item(row, 0).data(Qt.UserRole)
+                # FIX: Retrieve FULL VOUCHER, then get ID
+                voucher = self.voucher_table.item(row, 0).data(Qt.UserRole)
+                
+                # Extract ID safely
+                vid = self._get_voucher_attr(voucher, 'voucher_id')
+                if not vid:
+                    vid = self._get_voucher_attr(voucher, 'voucher_no')
+                
                 if vid:
                     ids_to_delete.append(vid)
             
             # Pass to data service (bulk delete if supported, else loop)
-            # Assuming data service has delete_voucher(id)
             if hasattr(self.data_service, 'delete_voucher'):
                 for vid in ids_to_delete:
                     self.data_service.delete_voucher(vid)
@@ -520,9 +872,7 @@ class ReviewValidationTab(QWidget):
                     voucher['status'] = "Approved"
                     count += 1
                 elif hasattr(voucher, 'status'):
-                    # Handle if status is an Enum, try to set value or string
                     try:
-                         # Try string first
                          voucher.status = "Approved"
                          count += 1
                     except:
@@ -532,7 +882,6 @@ class ReviewValidationTab(QWidget):
             if hasattr(self.data_service, 'save_vouchers'):
                 self.data_service.save_vouchers()
             else:
-                 # Fallback if specific method exists
                  pass
             
             QMessageBox.information(self, "Approved", f"Approved {count} voucher(s).")

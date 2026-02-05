@@ -4,13 +4,18 @@ from datetime import datetime, date
 from typing import List, Optional, Union, Any
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-import os
 
 from models.debit_voucher import (
     PurchaseVoucher, PayrollVoucher, JournalVoucher,
-    GSTApplicability, TransactionType
+    GSTApplicability, TransactionType,DebitVoucherType
 )
 from models.ledger_config import DebitVoucherConfig
+
+class TallyVoucherType:
+    JOURNAL = "Journal"
+    PURCHASE = "Purchase"
+    PAYMENT = "Payment"
+    RECEIPT = "Receipt"
 
 class TallyXMLGenerator:
     """Generates Tally Prime compatible XML import files."""
@@ -28,11 +33,11 @@ class TallyXMLGenerator:
                 # Safe type check
                 v_type = self._get_val(v, 'voucher_type')
                 
-                if isinstance(v, JournalVoucher) or v_type == 'Journal':
+                if isinstance(v, JournalVoucher) or v_type == DebitVoucherType.JOURNAL.value:
                     self._add_journal_voucher(request_data, v)
-                elif isinstance(v, PurchaseVoucher) or v_type == 'Purchase':
+                elif isinstance(v, PurchaseVoucher) or v_type == DebitVoucherType.PURCHASE.value:
                     self._add_purchase_voucher(request_data, v)
-                elif isinstance(v, PayrollVoucher) or v_type == 'Payment' or v_type == 'Payroll':
+                elif isinstance(v, PayrollVoucher) or v_type == DebitVoucherType.PAYROLL.value:
                     self._add_payroll_voucher(request_data, v)
                 else:
                     self._add_simple_voucher(request_data, v)
@@ -67,9 +72,9 @@ class TallyXMLGenerator:
 
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
-        vch.set('VCHTYPE', 'Journal')
+        vch.set('VCHTYPE', TallyVoucherType.JOURNAL)
         vch.set('ACTION', 'Create')
-        self._add_common_fields(vch, voucher, 'Journal')
+        self._add_common_fields(vch, voucher, TallyVoucherType.JOURNAL)
         
         entries = self._get_val(voucher, 'entries')
         if not entries: return
@@ -91,9 +96,9 @@ class TallyXMLGenerator:
     def _add_payroll_voucher(self, parent: ET.Element, voucher: Any):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
-        vch.set('VCHTYPE', 'Payment')
+        vch.set('VCHTYPE', TallyVoucherType.PAYMENT)
         vch.set('ACTION', 'Create')
-        self._add_common_fields(vch, voucher, 'Payment')
+        self._add_common_fields(vch, voucher, TallyVoucherType.PAYMENT)
 
         amt = float(self._get_val(voucher, 'amount', 0))
         
@@ -112,9 +117,9 @@ class TallyXMLGenerator:
     def _add_purchase_voucher(self, parent: ET.Element, voucher: Any):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
-        vch.set('VCHTYPE', 'Purchase')
+        vch.set('VCHTYPE', TallyVoucherType.PURCHASE)
         vch.set('ACTION', 'Create')
-        self._add_common_fields(vch, voucher, 'Purchase')
+        self._add_common_fields(vch, voucher, TallyVoucherType.PURCHASE)
         
         inv = self._get_val(voucher, 'invoice_no')
         if inv: self._add_elem(vch, 'REFERENCE', inv)
@@ -137,7 +142,7 @@ class TallyXMLGenerator:
     def _add_simple_voucher(self, parent: ET.Element, voucher: Any):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
-        v_type = self._get_val(voucher, 'tally_voucher_type', 'Journal')
+        v_type = self._get_val(voucher, 'tally_voucher_type', TallyVoucherType.JOURNAL)
         vch.set('VCHTYPE', v_type)
         vch.set('ACTION', 'Create')
         self._add_common_fields(vch, voucher, v_type)

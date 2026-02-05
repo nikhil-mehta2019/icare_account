@@ -113,13 +113,16 @@ class PayrollImportService:
             {
                 "Product Code": row.get("Product Code", ""),
                 "Business Segment": row.get("Business Segment", ""),
+                "Location": row.get("Location", ""),
                 "Salary Payable": row.get("Salary Payable", 0),
-                "Breakup": (
-                    f"PF:{row.get('Employee Share of PF Payable', 0)} | "
-                    f"ESIC:{row.get('Employee Share of ESIC Payable', 0)} | "
-                    f"PT:{row.get('Professional Tax Payable', 0)} | "
-                    f"TDS:{row.get('TDS on Salary Payable', 0)}"
-                )
+                "Amount": row.get("Amount", 0), 
+                # ... breakup fields ...                                
+                "Employee Share of PF Payable": row.get("Employee Share of PF Payable", 0),
+                "Employer Share of PF Payable": row.get("Employer Share of PF Payable", 0),
+                "Employee Share of ESIC Payable": row.get("Employee Share of ESIC Payable", 0),
+                "Employer Share of ESIC Payable": row.get("Employer Share of ESIC Payable", 0),
+                "Professional Tax Payable": row.get("Professional Tax Payable", 0),
+                "TDS on Salary Payable - FY 2026-27": row.get("TDS on Salary Payable - FY 2026-27", 0)
             }
             for _, row in df.head(15).iterrows()
         ]
