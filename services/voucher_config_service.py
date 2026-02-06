@@ -8,6 +8,13 @@ from datetime import datetime
 from models.master_data import MasterData
 from services.data_service import DataService
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 @dataclass
 class TallyHead:
     """Tally accounting head configuration."""
@@ -72,37 +79,41 @@ class VoucherConfigService:
         self.load_config()
     
     def load_config(self) -> bool:
-        """Load configuration from JSON file."""
         try:
-            # Try multiple paths
+            import sys
+
+            def resource_path(relative_path):
+                try:
+                    base_path = sys._MEIPASS
+                except Exception:
+                    base_path = os.path.abspath(".")
+                return os.path.join(base_path, relative_path)
+
             paths_to_try = [
-                self.CONFIG_PATH,
+                resource_path(self.CONFIG_PATH),                      # EXE bundle
+                self.CONFIG_PATH,                                     # project root
                 os.path.join(os.path.dirname(__file__), '..', self.CONFIG_PATH),
                 os.path.join(os.path.dirname(__file__), '..', 'data', 'voucher_config.json'),
             ]
-            
+
             for path in paths_to_try:
                 if os.path.exists(path):
+                    print("Loading config from:", path)
                     with open(path, 'r', encoding='utf-8') as f:
                         self._config = json.load(f)
+
                     self.master_data = MasterData.from_dict(self._config)
                     self._loaded = True
                     return True
-            
-                # Create default config if not found
-                self._config = self._get_default_config()
-                self.master_data = MasterData.from_dict(self._config)
-                self.data_service._master_data = self.master_data
-                self._loaded = True
-                return True
-            
-            # Create default config if not found
+
+            # Only fallback AFTER loop finishes
+            print("Config not found — using default")
             self._config = self._get_default_config()
             self.master_data = MasterData.from_dict(self._config)
             self.data_service._master_data = self.master_data
             self._loaded = True
             return True
-            
+
         except Exception as e:
             print(f"Error loading voucher config: {e}")
             self._config = self._get_default_config()
