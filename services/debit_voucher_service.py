@@ -192,8 +192,8 @@ class DebitVoucherImportService:
     def import_journal_csv(self, filepath: str) -> Tuple[List[JournalVoucher], ImportResult]:
          return [], ImportResult("x", "x", ImportStatus.FAILED) # Placeholder
 
-    def _process_payroll_rows(self, rows: List[Dict], result: ImportResult, voucher_date: datetime, remarks="") -> List[JournalVoucher]:
-        """Helper to process normalized rows for payroll cost."""
+    def _process_payroll_rows(self, rows: List[Dict], result: ImportResult, voucher_date: datetime, remarks: str = "") -> List[JournalVoucher]:
+        """Helper to process normalized rows for payroll cost with custom narration."""
         vouchers = []
         
         col_map = {}
@@ -218,11 +218,21 @@ class DebitVoucherImportService:
             result.add_error(0, 'VALIDATION', f"Missing required columns: {', '.join(missing)}")
             return []
 
+        # NEW: Extract specific period dates from result context if available
+        # This fulfills the requirement to show the exact date range in narration
+        from_date_str = result.context.get("from_date", voucher_date.strftime('%d-%m-%Y'))
+        to_date_str = result.context.get("to_date", voucher_date.strftime('%d-%m-%Y'))
+
+        # NEW: Construct narration using custom remarks and the date range
+        # Format: "[Custom Text] Payroll Cost for [From Date] till [To Date]"
+        prefix = f"{remarks} " if remarks.strip() else ""
+        custom_narration = f"{prefix}Payroll Cost for {from_date_str} till {to_date_str}".strip()
+
         # Create Consolidated JV
         jv = JournalVoucher(
             voucher_no=f"PAYROLL-{voucher_date.strftime('%b%Y').upper()}",
             voucher_date=voucher_date,
-            narration=f"{remarks} Payroll Cost for {voucher_date.strftime('%B %Y')}",
+            narration=custom_narration,
             status='Imported'
         )
 

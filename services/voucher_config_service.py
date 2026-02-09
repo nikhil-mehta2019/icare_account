@@ -435,12 +435,19 @@ class VoucherConfigService:
             return "CGST_SGST"
         return "IGST"
     
-    def generate_voucher_code(self, voucher_type: str, product_code: str, 
-                              sequence_num: int = 1) -> str:
-        """Generate voucher code based on format."""
+    def generate_voucher_code(self, voucher_type: str, product_code: str) -> str:
+        """
+        Generate a sequential voucher code separate for Debit and Credit.
+        Format: [DB/CR]-[ProductPrefix]-[YYYYMM]-[Sequence]
+        """
         now = datetime.now()
+        v_type = voucher_type.lower()
         
-        # Get product prefix
+        # 1. Get separate sequence from DataService for the specific type
+        # This ensures DB-0001 and CR-0001 can exist simultaneously
+        sequence_num = self.data_service.get_next_sequence(v_type)
+        
+        # 2. Get product prefix
         products = self.get_products()
         prefix = "MSC"
         for p in products:
@@ -448,10 +455,11 @@ class VoucherConfigService:
                 prefix = p.extra.get("prefix", "MSC")
                 break
         
-        if voucher_type.lower() == "credit":
-            return f"CR-{prefix}-{now.year}{now.month:02d}-{sequence_num:04d}"
-        else:
-            return f"DB-{prefix}-{now.year}{now.month:02d}-{sequence_num:04d}"
+        # 3. Generate Code based on Type
+        type_code = "CR" if v_type == "credit" else "DB"
+        date_str = now.strftime("%Y%m")
+        
+        return f"{type_code}-{prefix}-{date_str}-{sequence_num:04d}"
     
     # ============ MASTER DATA MANAGEMENT ============
     

@@ -177,7 +177,8 @@ class BulkImportTab(QWidget):
 
             vouchers, result = self.import_service.import_payroll_cost_csv(
                 path, 
-                v_datetime
+                v_datetime,
+                remarks=self.import_remarks.text()
             )
 
             self._vouchers = vouchers
