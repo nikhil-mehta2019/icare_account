@@ -192,7 +192,7 @@ class DebitVoucherImportService:
     def import_journal_csv(self, filepath: str) -> Tuple[List[JournalVoucher], ImportResult]:
          return [], ImportResult("x", "x", ImportStatus.FAILED) # Placeholder
 
-    def _process_payroll_rows(self, rows: List[Dict], result: ImportResult, voucher_date: datetime) -> List[JournalVoucher]:
+    def _process_payroll_rows(self, rows: List[Dict], result: ImportResult, voucher_date: datetime, remarks="") -> List[JournalVoucher]:
         """Helper to process normalized rows for payroll cost."""
         vouchers = []
         
@@ -222,7 +222,7 @@ class DebitVoucherImportService:
         jv = JournalVoucher(
             voucher_no=f"PAYROLL-{voucher_date.strftime('%b%Y').upper()}",
             voucher_date=voucher_date,
-            narration=f"Payroll Cost for {voucher_date.strftime('%B %Y')}",
+            narration=f"{remarks} Payroll Cost for {voucher_date.strftime('%B %Y')}",
             status='Imported'
         )
 

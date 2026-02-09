@@ -74,6 +74,11 @@ class BulkImportTab(QWidget):
         self.voucher_date = QDateEdit(QDate.currentDate())
         self.from_date = QDateEdit(QDate.currentDate())
         self.to_date = QDateEdit(QDate.currentDate())
+        
+        # ADDED: New Remarks field for narration customization
+        self.import_remarks = QLineEdit()
+        self.import_remarks.setPlaceholderText("e.g., Nanavati Team")
+        self.import_remarks.setMinimumWidth(150)
 
         for d in (self.voucher_date, self.from_date, self.to_date):
             d.setCalendarPopup(True)
@@ -87,6 +92,12 @@ class BulkImportTab(QWidget):
         layout.addWidget(self.from_date)
         layout.addWidget(QLabel("To:"))
         layout.addWidget(self.to_date)
+        
+        # ADDED: Adding the remarks widgets to the layout
+        layout.addSpacing(20)
+        layout.addWidget(QLabel("Details/Remarks:"))
+        layout.addWidget(self.import_remarks)
+        
         layout.addStretch()
 
         return group

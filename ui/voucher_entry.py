@@ -201,6 +201,8 @@ class VoucherEntryTab(QWidget):
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
 
+        
+
         # === FIXED BOTTOM NAVIGATION BAR ===
         nav_container = QWidget()
         nav_container.setStyleSheet(f"""
@@ -1505,14 +1507,14 @@ class VoucherEntryTab(QWidget):
         
         # Get Invoice Info
         inv_no = self.invoice_no_input.text().strip()
-        inv_str = f"Inv:{inv_no}" if inv_no else ""
+        #inv_str = f"Inv:{inv_no}" if inv_no else ""
 
         # DEBIT FORMAT: [Expense] from [Vendor] [InvNo] [Period]
         exp = self.expense_details_input.text().strip() or "Expense"
         vnd = self.vendor_combo.currentText().strip()
         if not vnd or vnd.startswith("--"): vnd = "Vendor"
         
-        self.narration_edit.setText(f"{exp} from {vnd} {inv_str} {period_str}")
+        self.narration_edit.setText(f"{exp} from {vnd} {period_str}")
         
     
     # === Navigation ===
@@ -1572,7 +1574,9 @@ class VoucherEntryTab(QWidget):
             if vendor_name.lower() not in existing:
                 # It's new! Save to Master Data
                 self.config.add_vendor({"name": vendor_name, "isActive": True})
+                self.config.save_master_data()
         # ============================
+        self._populate_vendors()  # Refresh vendor list to include any new addition
         self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
         self._step_data['invoice_no'] = self.invoice_no_input.text()
         self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
@@ -1746,3 +1750,10 @@ class VoucherEntryTab(QWidget):
         vendors = self.config.get_all_vendors()
         for v in vendors:
             self.vendor_combo.addItem(v['name'], v['name'])
+
+
+    def showEvent(self, event):
+        """Refresh data whenever the tab becomes visible."""
+        super().showEvent(event)
+        self._populate_vendors()
+        self._populate_tally_heads()
