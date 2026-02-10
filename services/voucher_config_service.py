@@ -87,9 +87,13 @@ class VoucherConfigService:
         self.load_config()
     
     def load_config(self) -> bool:
+        """
+        Load static config, but force Vendors to come from master_data.json.
+        Includes SELF-HEALING logic to migrate old data if found.
+        """
         try:
             import sys
-
+            # Helper for path resolution
             def resource_path(relative_path):
                 try:
                     base_path = sys._MEIPASS
@@ -97,28 +101,44 @@ class VoucherConfigService:
                     base_path = os.path.abspath(".")
                 return os.path.join(base_path, relative_path)
 
+            # 1. Load Static Settings (Tax, States, etc.) from voucher_config.json
             paths_to_try = [
-                resource_path(self.CONFIG_PATH),                      # EXE bundle
-                self.CONFIG_PATH,                                     # project root
+                resource_path(self.CONFIG_PATH),
+                self.CONFIG_PATH,
                 os.path.join(os.path.dirname(__file__), '..', self.CONFIG_PATH),
                 os.path.join(os.path.dirname(__file__), '..', 'data', 'voucher_config.json'),
             ]
 
+            config_found = False
             for path in paths_to_try:
                 if os.path.exists(path):
-                    print("Loading config from:", path)
+                    print("Loading static config from:", path)
                     with open(path, 'r', encoding='utf-8') as f:
                         self._config = json.load(f)
+                    config_found = True
+                    break
+            
+            if not config_found:
+                print("Config not found — using default")
+                self._config = self._get_default_config()
 
-                    self.master_data = MasterData.from_dict(self._config)
-                    self._loaded = True
-                    return True
+            # 2. LOAD LIVE DATA (Vendors) from master_data.json
+            self.data_service.load_master_data()
+            
+            # 3. SELF-HEALING / MIGRATION LOGIC
+            # If master_data has NO vendors, but voucher_config DOES, migrate them!
+            live_vendors = self.data_service.master_data.vendors
+            legacy_vendors = self._config.get("vendors", [])
 
-            # Only fallback AFTER loop finishes
-            print("Config not found — using default")
-            self._config = self._get_default_config()
-            self.master_data = MasterData.from_dict(self._config)
-            self.data_service._master_data = self.master_data
+            if not live_vendors and legacy_vendors:
+                print(f"[Migration] Found {len(legacy_vendors)} vendors in config but 0 in master. Migrating...")
+                self.data_service.master_data.vendors = legacy_vendors
+                self.data_service.save_master_data() # Save to master_data.json immediately
+                print("[Migration] Success! Data moved to master_data.json")
+
+            # 4. Set the authority
+            self.master_data = self.data_service.master_data
+            
             self._loaded = True
             return True
 
@@ -627,13 +647,15 @@ class VoucherConfigService:
         return self.master_data.vendors if self.master_data else []
 
     def add_vendor(self, data: dict) -> bool:
-        """Add a new vendor."""
-        if not self.master_data: 
-            return False
+        """Add a new vendor and force save to BOTH json files."""
         
-        # Check duplicate
+        # 1. Prepare New Vendor Data
         name = data.get("name", "").strip()
-        if any(v.get("name", "").lower() == name.lower() for v in self.master_data.vendors):
+        if not name: return False
+        
+        # Check for duplicates in the current config
+        current_vendors = self.get_all_vendors()
+        if any(v.get("name", "").lower() == name.lower() for v in current_vendors):
             return False # Duplicate
             
         new_vendor = {
@@ -642,10 +664,35 @@ class VoucherConfigService:
             "contact_person": data.get("contact_person", ""),
             "isActive": True
         }
-        self.master_data.vendors.append(new_vendor)
-        self.data_service.save_master_data()
-        return True
 
+        # --- STEP 2: Save to voucher_config.json ---
+        # Update the raw config dictionary
+        if "vendors" not in self._config:
+            self._config["vendors"] = []
+            
+        self._config["vendors"].append(new_vendor)
+        self.save_config() # Writes to data/voucher_config.json
+
+        # --- STEP 3: Save to master_data.json ---
+        # CRITICAL FIX: We must get the LIVE object from DataService, update it, and save.
+        
+        # Force DataService to load its current state
+        ds_master_data = self.data_service.get_master_data()
+        
+        # Add the vendor to DataService's object if not already there
+        if not any(v.get("name", "").lower() == name.lower() for v in ds_master_data.vendors):
+            ds_master_data.vendors.append(new_vendor)
+            
+        # Now save specifically using DataService
+        self.data_service.save_master_data() # Writes to data/master_data.json
+        
+        # Update local reference to match
+        if self.master_data:
+            self.master_data.vendors.append(new_vendor)
+
+        print(f"Vendor '{name}' synced to both files.")
+        return True
+    
     def update_vendor(self, original_name: str, data: dict) -> bool:
         """Update an existing vendor."""
         if not self.master_data: return False
@@ -667,6 +714,53 @@ class VoucherConfigService:
                 self.data_service.save_master_data()
                 return True
         return False
+    
+    def sync_vendors(self):
+        """
+        Two-way sync: Ensures vendors exist in BOTH voucher_config.json and master_data.json.
+        """
+        if not self._loaded: return
+
+        # 1. Get the lists
+        if "vendors" not in self._config:
+            self._config["vendors"] = []
+        config_vendors = self._config["vendors"]
+        
+        # Get live Master Data from DataService
+        ds_master = self.data_service.get_master_data()
+        master_vendors = ds_master.vendors
+
+        # 2. Create Lookup Maps (Name -> Data) for easy comparison
+        # We use lower-case names keys to prevent case-sensitive duplicates
+        config_map = {v.get("name", "").strip().lower(): v for v in config_vendors if v.get("name")}
+        master_map = {v.get("name", "").strip().lower(): v for v in master_vendors if v.get("name")}
+
+        changes_to_master = False
+        changes_to_config = False
+
+        # 3. Sync Config -> Master (If in Config but missing in Master)
+        for name_key, data in config_map.items():
+            if name_key not in master_map:
+                print(f"[Sync] Restore missing vendor to Master Data: {data['name']}")
+                master_vendors.append(data)
+                master_map[name_key] = data # Add to map so we don't add it back to config
+                changes_to_master = True
+
+        # 4. Sync Master -> Config (If in Master but missing in Config)
+        for name_key, data in master_map.items():
+            if name_key not in config_map:
+                print(f"[Sync] Restore missing vendor to Config: {data['name']}")
+                config_vendors.append(data)
+                changes_to_config = True
+
+        # 5. Save Changes if needed
+        if changes_to_master:
+            self.data_service.save_master_data()
+            print("[Sync] master_data.json updated.")
+
+        if changes_to_config:
+            self.save_config()
+            print("[Sync] voucher_config.json updated.")
 
 # Singleton instance
 _config_service = None
