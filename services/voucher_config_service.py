@@ -2,11 +2,19 @@
 
 import json
 import os
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from models.master_data import MasterData
 from services.data_service import DataService
+
+
+def get_persistent_path(filename):
+    # This path remains the same even if the .exe folder is replaced
+    app_data = Path(os.getenv('LOCALAPPDATA')) / "iCareAccount"
+    app_data.mkdir(parents=True, exist_ok=True)
+    return str(app_data / filename)
 
 def resource_path(relative_path):
     try:
@@ -284,7 +292,8 @@ class VoucherConfigService:
                 {"value": "RETAIL", "label": "Retail"},
                 {"value": "FRANCHISE", "label": "Franchise"},
                 {"value": "PLACEMENT", "label": "Placement"},
-                {"value": "HOMECARE", "label": "Homecare"}
+                {"value": "HOMECARE", "label": "Homecare"},
+                {"value": "CORPORATE", "label": "Corporate"}
             ]
         return [
             DropdownOption(

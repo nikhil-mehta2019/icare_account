@@ -346,6 +346,10 @@ class VoucherEntryTab(QWidget):
         self.voucher_date = QDateEdit()
         self.voucher_date.setDate(QDate.currentDate())
         self.voucher_date.setCalendarPopup(True)
+        # This prevents the user from even clicking/typing a date older than allowed
+        max_days = self.config.get_validation_rules().get("maxBackdateDays", 7)
+        self.voucher_date.setMinimumDate(QDate.currentDate().addDays(-max_days))
+        self.voucher_date.setMaximumDate(QDate.currentDate()) # Prevent future dates
         self.voucher_date.setDisplayFormat("dd-MMM-yyyy")
         self.voucher_date.setMinimumWidth(140)
         self.voucher_date.setFixedHeight(32)
@@ -1096,7 +1100,9 @@ class VoucherEntryTab(QWidget):
     def _connect_signals(self):
         """Connect all signals."""
         # Type change
-        self.type_group.buttonClicked.connect(self._on_type_changed)
+        #self.type_group.buttonClicked.connect(self._on_type_changed)
+        self.credit_radio.toggled.connect(self._on_radio_toggled)
+        self.debit_radio.toggled.connect(self._on_radio_toggled)
         
         # Navigation
         self.next_btn.clicked.connect(self._on_next)
@@ -1236,38 +1242,51 @@ class VoucherEntryTab(QWidget):
     # === Event Handlers ===
     
     def _on_type_changed(self, button):
-        """Handle voucher type change."""
-        self._voucher_type = "credit" if button == self.credit_radio else "debit"
-        self._populate_voucher_types()
-        self._populate_tally_heads()
+        """Handle voucher type change (Debit/Credit) with full reset."""
         
+        # 1. Determine New Type
+        new_type = "credit" if button == self.credit_radio else "debit"
+        
+        # Optimization: If type is already selected, do nothing
+        if self._voucher_type == new_type:
+            return
+
+        self._voucher_type = new_type
+        
+        # 2. Update UI Visibility based on Type
         if self._voucher_type == "credit":
-            # CREDIT: Hide TDS, Expense Details, and Auto-Narration
+            # CREDIT: Hide Debit-specific fields
             self.tds_frame.setVisible(False)
             self.expense_details_row.setVisible(False)
             self.vendor_group.setVisible(False)
             
-            # === HIDE AUTO-NARRATION FOR CREDIT ===
             if hasattr(self, 'auto_narration_row'):
                 self.auto_narration_row.setVisible(False)
             
             self.amount_label.setText("Amount (₹) *:")
             self._gst_is_additive = False 
-        else:  # DEBIT
-            # DEBIT: Show TDS, Expense Details, and Auto-Narration
+        else:  
+            # DEBIT: Show Debit-specific fields
             self.tds_frame.setVisible(True)
             self.expense_details_row.setVisible(True)
             self.vendor_group.setVisible(True)
             
-            # === SHOW AUTO-NARRATION FOR DEBIT ===
             if hasattr(self, 'auto_narration_row'):
                 self.auto_narration_row.setVisible(True)
             
             self.amount_label.setText("Base Amount (excl. GST) *:")
             self._gst_is_additive = True
+
+        # 3. Refresh Dropdowns for the new type
+        self._populate_voucher_types()
+        self._populate_tally_heads()
+        self._populate_vendors() 
         
+        # 4. Perform Hard Reset (Clears all inputs and goes to Step 1)
+        self._reset_form()
+        
+        # 5. Update Voucher Code
         self._update_voucher_code()
-        self._reset_form_for_type_change()
     
     def _on_head_changed(self, index):
         """Handle tally head selection."""
@@ -1393,7 +1412,7 @@ class VoucherEntryTab(QWidget):
     def _update_voucher_code(self):
         product_code = self.product_combo.currentData() or "MISC"
         code = self.config.generate_voucher_code(
-            self._voucher_type, product_code, self._voucher_sequence
+            self._voucher_type, product_code
         )
         self.voucher_code_display.setText(code)
     
@@ -1728,13 +1747,40 @@ class VoucherEntryTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
 
     def _reset_form(self):
+        """Completely reset the form to its initial state."""
         self._current_step = 1
         self._step_data = {}
+        
+        # 1. Reset Dropdowns
         self.tally_head_combo.setCurrentIndex(0)
         self.vendor_combo.setCurrentIndex(0)
+        if hasattr(self, 'segment_combo'): self.segment_combo.setCurrentIndex(0)
+        if hasattr(self, 'product_combo'): self.product_combo.setCurrentIndex(0)
+        # Default GST to 'Yes' (index 0) and TDS to 'No' (index 1) usually
+        if hasattr(self, 'gst_app_combo'): self.gst_app_combo.setCurrentIndex(0)
+        if hasattr(self, 'tds_app_combo'): self.tds_app_combo.setCurrentIndex(1) 
+        
+        # 2. Clear Text Inputs
         self.invoice_no_input.clear()
-        self.amount_input.setValue(0)
+        self.expense_details_input.clear()
         self.narration_edit.clear()
+        
+        # 3. Reset Numeric Inputs
+        self.amount_input.setValue(0)
+        if hasattr(self, 'tds_rate_spin'): self.tds_rate_spin.setValue(0)
+        
+        # 4. Reset Dates
+        self.voucher_date.setDate(QDate.currentDate())
+        self.invoice_date_input.setDate(QDate.currentDate())
+        self._set_default_dates() # Resets 'From'/'To' period
+        
+        # 5. Clear Displays
+        self.gross_display.clear()
+        if hasattr(self, 'voucher_code_display'): 
+             # Re-generate code for the clean form
+             self._update_voucher_code()
+
+        # 6. Force Navigation to Step 1
         self._go_to_step(1)
     
     def _reset_form_for_type_change(self):
@@ -1757,3 +1803,12 @@ class VoucherEntryTab(QWidget):
         super().showEvent(event)
         self._populate_vendors()
         self._populate_tally_heads()
+
+    def _on_radio_toggled(self, checked):
+        """Handle individual radio toggle."""
+        if not checked: 
+            return # Ignore the 'unchecked' event, only handle the one turning True
+            
+        # Identify which button triggered it
+        sender = self.sender()
+        self._on_type_changed(sender)

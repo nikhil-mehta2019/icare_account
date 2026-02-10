@@ -13,7 +13,12 @@ from models.debit_voucher import (
     JournalVoucher, PurchaseVoucher, PayrollVoucher, 
     DebitVoucherType, GSTConfig, TDSConfig
 )
-
+def get_persistent_path(filename):
+    # This path remains the same even if the .exe folder is replaced
+    app_data = Path(os.getenv('LOCALAPPDATA')) / "iCareAccount"
+    app_data.mkdir(parents=True, exist_ok=True)
+    return str(app_data / filename)
+    
 class DataService:
     """
     Handles all data persistence operations.
@@ -217,3 +222,52 @@ class DataService:
     def clear_vouchers(self) -> None:
         self._vouchers = []
         self.save_vouchers()
+
+    def get_next_sequence(self, voucher_type: str) -> int:
+        """
+        Calculate next sequence number for the given voucher type in the current month.
+        Separates 'Debit' and 'Credit' sequences.
+        """
+        self.load_vouchers()
+        current_month_str = datetime.now().strftime("%Y%m")
+        
+        max_seq = 0
+        
+        # Normalize type string
+        target_type = voucher_type.lower()
+        
+        for v in self._vouchers:
+            # 1. Check Voucher Type (Debit vs Credit)
+            # Handle both Object (Enum) and Dict cases safely
+            v_type_val = getattr(v, 'voucher_type', '')
+            if hasattr(v_type_val, 'value'): 
+                v_type_val = v_type_val.value # Extract 'Credit' from Enum
+            
+            if isinstance(v, dict):
+                v_type_val = v.get('voucher_type', '')
+
+            if str(v_type_val).lower() != target_type:
+                continue
+
+            # 2. Get the Code (reference_id)
+            code = getattr(v, 'reference_id', '')
+            if isinstance(v, dict):
+                code = v.get('reference_id', '')
+            
+            if not code:
+                continue
+
+            # 3. Parse Code: [Type]-[Product]-[YYYYMM]-[Seq]
+            # Example: DB-MSC-202602-0045
+            parts = code.split('-')
+            
+            # Ensure it matches current month pattern
+            if len(parts) >= 4 and parts[-2] == current_month_str:
+                try:
+                    seq = int(parts[-1])
+                    if seq > max_seq:
+                        max_seq = seq
+                except ValueError:
+                    continue
+        
+        return max_seq + 1

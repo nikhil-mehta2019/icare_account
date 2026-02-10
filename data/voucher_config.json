@@ -68,7 +68,8 @@
     {"value": "RETAIL", "label": "Retail", "isActive": true},
     {"value": "FRANCHISE", "label": "Franchise", "isActive": true},
     {"value": "PLACEMENT", "label": "Placement", "isActive": true},
-    {"value": "HOMECARE", "label": "Homecare", "isActive": true}
+    {"value": "HOMECARE", "label": "Homecare", "isActive": true},
+    {"value": "CORPORATE", "label": "Corporate", "isActive": true}
   ],
   
   "franchises": [
