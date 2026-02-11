@@ -1,3 +1,4 @@
+from unittest import result
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QGroupBox, QMessageBox,
@@ -130,6 +131,7 @@ class BulkImportTab(QWidget):
         return group
 
     def _browse_file(self):
+        # Validation removed from here to allow smoother workflow
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Payroll File",
@@ -186,7 +188,18 @@ class BulkImportTab(QWidget):
             
             # Check for failures
             if result.status == ImportStatus.FAILED:
-                error_msg = result.errors[0]['message'] if result.errors else "Unknown Error"
+                if result.errors:
+                    err = result.errors[0]
+
+                    if isinstance(err, dict):
+                        error_msg = err.get("message", str(err))
+                    elif isinstance(err, Exception):
+                        error_msg = str(err)
+                    else:
+                        error_msg = str(err)
+                else:
+                    error_msg = "Unknown Error"
+
                 raise Exception(error_msg)
 
             self.import_btn.setEnabled(result.successful_rows > 0)
@@ -307,6 +320,17 @@ class BulkImportTab(QWidget):
         return layout
 
     def _confirm_import(self):
+        # 1. Validate Remarks (Mandatory)
+        remarks = self.import_remarks.text().strip()
+        if not remarks:
+            QMessageBox.warning(
+                self, 
+                "Validation Error", 
+                "Details/Remarks are required.\n\nPlease enter a remark (e.g., 'Nanavati Team') before confirming."
+            )
+            self.import_remarks.setFocus()
+            return
+
         if not self._vouchers:
             QMessageBox.warning(self, "No Data", "No payroll data to import.")
             return
@@ -321,18 +345,26 @@ class BulkImportTab(QWidget):
         )
 
         if reply == QMessageBox.Yes:
-            # FIX: Ensure we send dictionaries if DataService expects them
-            # Most simple JSON stores need dicts, not Python objects
-            vouchers_payload = [v.to_dict() if hasattr(v, 'to_dict') else v for v in self._vouchers]
-            
-            self.data_service.add_vouchers_bulk(vouchers_payload)
-            
-            if self._import_result:
-                self._import_result.complete(ImportStatus.COMPLETED)
-                self.import_completed.emit(self._import_result)
-            
-            QMessageBox.information(self, "Success", "Payroll accounting entries imported successfully.")
-            self._clear()
+            try:
+                # 2. Force Update Narration on all vouchers
+                # This ensures that even if you typed remarks AFTER browsing, they are applied now.
+                for v in self._vouchers:
+                    v.narration = remarks
+
+                # 3. Convert and Save
+                vouchers_payload = [v.to_dict() if hasattr(v, 'to_dict') else v for v in self._vouchers]
+                
+                self.data_service.add_vouchers_bulk(vouchers_payload)
+                
+                if self._import_result:
+                    self._import_result.complete(ImportStatus.COMPLETED)
+                    self.import_completed.emit(self._import_result)
+                
+                QMessageBox.information(self, "Success", "Payroll accounting entries imported successfully.")
+                self._clear()
+                
+            except Exception as e:
+                QMessageBox.critical(self, "Import Error", f"Failed to save vouchers: {str(e)}")
 
     def _clear(self):
         self.import_btn.setEnabled(False)

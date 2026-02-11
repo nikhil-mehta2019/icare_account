@@ -531,7 +531,7 @@ class ReviewValidationTab(QWidget):
         self.voucher_table.horizontalHeader().setStretchLastSection(True)
         
         # Headers adjusted for compatibility
-        headers = ["Date", "Type", "Voucher No", "Ledger / Particulars", "Amount", "Segment", "Status", "Source"]
+        headers = ["Date", "Type", "Voucher Code", "Ledger / Particulars", "Amount", "Segment", "Status", "Source"]
         self.voucher_table.setColumnCount(len(headers))
         self.voucher_table.setHorizontalHeaderLabels(headers)
         
@@ -636,7 +636,7 @@ class ReviewValidationTab(QWidget):
             # --- 3. VOUCHER NO / ACCOUNT CODE ---
             v_no = self._get_voucher_attr(voucher, 'voucher_no')
             if not v_no:
-                v_no = self._get_voucher_attr(voucher, 'voucher_id', '') # Fallback
+                v_no = self._get_voucher_attr(voucher, 'reference_id', '') # Fallback
             self.voucher_table.setItem(row_idx, 2, QTableWidgetItem(str(v_no)))
             
             # --- 4. LEDGER / NAME (FIX: Prioritize tally_head) ---

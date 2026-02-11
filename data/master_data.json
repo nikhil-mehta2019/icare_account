@@ -769,6 +769,20 @@
       "allocation_percentage": 0.0
     }
   ],
+  "vendors": [
+    {
+      "name": "VRMDB Services",
+      "gstin": "",
+      "contact_person": "",
+      "isActive": true
+    },
+    {
+      "name": "Life Uno",
+      "gstin": "",
+      "contact_person": "",
+      "isActive": true
+    }
+  ],
   "settings": {
     "is_frozen": true,
     "admin_password": "Subudhi123",

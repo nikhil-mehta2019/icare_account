@@ -1,13 +1,16 @@
 """Voucher Entry Tab - Manual Entry with Vendor Master & Invoice Details."""
 
+from email import header
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QComboBox, QRadioButton, QButtonGroup,
     QPushButton, QGroupBox, QFrame, QMessageBox, QDoubleSpinBox,
     QDateEdit, QScrollArea, QSizePolicy, QTextEdit, QTableWidget,
-    QTableWidgetItem, QHeaderView, QStackedWidget, QSpacerItem
+    QTableWidgetItem, QHeaderView, QStackedWidget, QSpacerItem,QGridLayout
 )
-from PySide6.QtCore import Qt, Signal, QDate
+
+from PySide6.QtCore import Qt, Signal, QDate,QEvent
+from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtGui import QFont
 from datetime import datetime, date, timedelta
 from types import SimpleNamespace # Added for object creation
@@ -273,44 +276,31 @@ class VoucherEntryTab(QWidget):
         """Step 1: Method & Head Selection."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(8)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(5)
+        layout.setContentsMargins(0,0,0,0)
         
-        # Recording Method & Voucher Type
-        method_group = QGroupBox("Method & Type")
-        method_layout = QHBoxLayout(method_group)
-        method_layout.setContentsMargins(10, 6, 10, 6)
-        
-        self.method_label = QLabel("Manual Entry")
-        self.method_label.setStyleSheet(f"""
-            background-color: {Styles.PRIMARY};
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-        """)
-        method_layout.addWidget(self.method_label)
-        
-        # NEW: Voucher Type Dropdown (Requirement)
-        method_layout.addSpacing(20)
-        method_layout.addWidget(QLabel("Voucher Type:"))
+        # === NEW LAYOUT: Single Group for Classification ===
+        class_group = QGroupBox("Voucher Classification")
+        class_layout = QGridLayout(class_group)
+        class_layout.setContentsMargins(5, 5, 5, 5)
+        class_layout.setHorizontalSpacing(10)
+        class_layout.setVerticalSpacing(2)
+
+        # Voucher Type
+        type_label = QLabel("Voucher Type:")
         self.voucher_type_combo = QComboBox()
         self.voucher_type_combo.setMinimumWidth(150)
-        method_layout.addWidget(self.voucher_type_combo)
-        
-        method_layout.addStretch()
-        layout.addWidget(method_group)
-        
-        # Tally Accounting Head
-        head_group = QGroupBox("Tally Accounting Head *")
-        head_layout = QVBoxLayout(head_group)
-        head_layout.setContentsMargins(10, 6, 10, 6)
-        head_layout.setSpacing(8)
-        
+        self.voucher_type_combo.setFixedHeight(30)
+
+        class_layout.addWidget(type_label, 0, 0)
+        class_layout.addWidget(self.voucher_type_combo, 0, 1)
+
+        # Tally Head
+        head_label = QLabel("Tally Accounting Head: *")
         self.tally_head_combo = QComboBox()
         self.tally_head_combo.setPlaceholderText("-- Select Accounting Head --")
-        self.tally_head_combo.setMinimumHeight(36)
+        self.tally_head_combo.setMinimumWidth(300)
+        self.tally_head_combo.setFixedHeight(30)
         self.tally_head_combo.setStyleSheet(f"""
             QComboBox {{
                 padding: 8px 12px;
@@ -320,15 +310,24 @@ class VoucherEntryTab(QWidget):
                 background-color: {Styles.BG_CARD};
             }}
         """)
-        head_layout.addWidget(self.tally_head_combo)
-        
+
+        class_layout.addWidget(head_label, 0, 2)
+        class_layout.addWidget(self.tally_head_combo, 0, 3)
+
+        # Info label below head combo
         self.head_info_label = QLabel("")
-        self.head_info_label.setStyleSheet(f"color: {Styles.TEXT_MUTED}; font-size: 11px;")
-        head_layout.addWidget(self.head_info_label)
+        self.head_info_label.setStyleSheet(
+            f"color: {Styles.TEXT_MUTED}; font-size: 11px;"
+        )
+        class_layout.addWidget(self.head_info_label, 1, 3)
+
+        # Stretch so row doesn't expand awkwardly
+        class_layout.setColumnStretch(4, 1)
+
+        layout.addWidget(class_group)
+        class_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         
-        layout.addWidget(head_group)
-        
-        # Date Fields
+        # === Date Fields Group (Unchanged) ===
         date_group = QGroupBox("Voucher Dates")
         date_layout = QVBoxLayout(date_group)
         date_layout.setContentsMargins(10, 6, 10, 6)
@@ -346,10 +345,9 @@ class VoucherEntryTab(QWidget):
         self.voucher_date = QDateEdit()
         self.voucher_date.setDate(QDate.currentDate())
         self.voucher_date.setCalendarPopup(True)
-        # This prevents the user from even clicking/typing a date older than allowed
         max_days = self.config.get_validation_rules().get("maxBackdateDays", 7)
         self.voucher_date.setMinimumDate(QDate.currentDate().addDays(-max_days))
-        self.voucher_date.setMaximumDate(QDate.currentDate()) # Prevent future dates
+        self.voucher_date.setMaximumDate(QDate.currentDate())
         self.voucher_date.setDisplayFormat("dd-MMM-yyyy")
         self.voucher_date.setMinimumWidth(140)
         self.voucher_date.setFixedHeight(32)
@@ -405,11 +403,10 @@ class VoucherEntryTab(QWidget):
         date_layout.addWidget(date_helper)
         
         layout.addWidget(date_group)
-        layout.addStretch()
+        date_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         
-        # Initialize with default dates
         self._set_default_dates()
-        
+        layout.setAlignment(Qt.AlignTop)
         return widget
     
     def _create_step2(self) -> QWidget:
@@ -640,89 +637,112 @@ class VoucherEntryTab(QWidget):
         layout = QVBoxLayout(widget)
         layout.setSpacing(8)
         layout.setContentsMargins(8, 8, 8, 8)
-        
-        # === VENDOR SECTION (DEBIT ONLY - UPDATED) ===
-        self.vendor_group = QGroupBox("Vendor / Party Details")
-        vendor_layout = QFormLayout(self.vendor_group)
-        vendor_layout.setContentsMargins(10, 6, 10, 6)
-        vendor_layout.setSpacing(8)
-        
-        # NEW: Vendor Dropdown (ComboBox)
-        self.vendor_combo = QComboBox()
-        self.vendor_combo.setMinimumHeight(32)
-        self.vendor_combo.setEditable(True) # Allow typing to search
-        self.vendor_combo.setPlaceholderText("-- Select or Enter Vendor Name --")
-        self._populate_vendors() # Initial population
-        vendor_layout.addRow("Vendor Name:", self.vendor_combo)
 
-        # CHANGED: Styled Label for Vendor
-        lbl_vendor = QLabel("Vendor Name:")
+        FIELD_HEIGHT = 32
+        LABEL_MIN_WIDTH = 110
+
+        # ================= VENDOR SECTION =================
+        self.vendor_group = QGroupBox("Vendor & Invoice Details")
+        vendor_group_layout = QVBoxLayout(self.vendor_group)
+        vendor_group_layout.setContentsMargins(10, 10, 10, 10)
+
+        row_layout = QHBoxLayout()
+        row_layout.setSpacing(8)
+        row_layout.setContentsMargins(0, 4, 0, 4)
+
+        lbl_vendor = QLabel("Vendor:")
         lbl_vendor.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
-        vendor_layout.addRow(lbl_vendor, self.vendor_combo)
-        
-        # NEW: Invoice Details Row
-        inv_row_layout = QHBoxLayout()
+        lbl_vendor.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lbl_vendor.setMinimumWidth(LABEL_MIN_WIDTH)
+        row_layout.addWidget(lbl_vendor)
+
+        self.vendor_combo = QComboBox()
+        self.vendor_combo.setEditable(True)
+        self.vendor_combo.setMinimumWidth(340)
+        self.vendor_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.vendor_combo.setFixedHeight(FIELD_HEIGHT)
+        self.vendor_combo.setPlaceholderText("Select Vendor")
+        self.vendor_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.vendor_combo.setMaxVisibleItems(20)
+        self.vendor_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.vendor_combo.view().setMinimumWidth(500)
+
+        line_edit = self.vendor_combo.lineEdit()
+        def open_popup(event):
+            self.vendor_combo.showPopup()
+            QLineEdit.mousePressEvent(line_edit, event)
+        line_edit.mousePressEvent = open_popup        
+
+        self._populate_vendors()
+        row_layout.addWidget(self.vendor_combo)
+
+        lbl_inv = QLabel("Invoice No:")
+        lbl_inv.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
+        lbl_inv.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lbl_inv.setMinimumWidth(LABEL_MIN_WIDTH)
+        row_layout.addWidget(lbl_inv)
+
         self.invoice_no_input = QLineEdit()
-        self.invoice_no_input.setPlaceholderText("Invoice No")
-        self.invoice_no_input.setMinimumHeight(32)
-        
+        self.invoice_no_input.setPlaceholderText("Inv #")
+        self.invoice_no_input.setFixedWidth(120)
+        self.invoice_no_input.setFixedHeight(FIELD_HEIGHT)
+        row_layout.addWidget(self.invoice_no_input)
+
+        lbl_date = QLabel("Date:")
+        lbl_date.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
+        lbl_date.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lbl_date.setMinimumWidth(LABEL_MIN_WIDTH)
+        row_layout.addWidget(lbl_date)
+
         self.invoice_date_input = QDateEdit()
         self.invoice_date_input.setDate(QDate.currentDate())
         self.invoice_date_input.setCalendarPopup(True)
         self.invoice_date_input.setDisplayFormat("dd-MMM-yyyy")
-        self.invoice_date_input.setMinimumHeight(32)
-        
-        lbl_inv_no = QLabel("Invoice No:")
-        lbl_inv_no.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
-        
-        lbl_inv_date = QLabel("Invoice Date:")
-        lbl_inv_date.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
-        
-        inv_row_layout.addWidget(lbl_inv_no)
-        inv_row_layout.addWidget(self.invoice_no_input)
-        inv_row_layout.addSpacing(20)
-        inv_row_layout.addWidget(lbl_inv_date)
-        inv_row_layout.addWidget(self.invoice_date_input)
-        
-        vendor_layout.addRow(inv_row_layout)
-        
-        self.vendor_group.setVisible(False)  # Hidden for Credit by default
+        self.invoice_date_input.setFixedWidth(120)
+        self.invoice_date_input.setFixedHeight(FIELD_HEIGHT)
+        self.invoice_date_input.setStyleSheet(self._get_date_style())
+        row_layout.addWidget(self.invoice_date_input)
+
+        row_layout.addStretch()
+        vendor_group_layout.addLayout(row_layout)
+
+        self.vendor_group.setVisible(False)
         layout.addWidget(self.vendor_group)
-        
-        # === AMOUNT SECTION ===
+
+        # ================= AMOUNT SECTION =================
         amount_group = QGroupBox("Financial Details")
         amount_layout = QVBoxLayout(amount_group)
         amount_layout.setContentsMargins(10, 6, 10, 6)
         amount_layout.setSpacing(8)
-        
-        # Expense Details Field (DEBIT ONLY)
+
         self.expense_details_row = QWidget()
         expense_row_layout = QHBoxLayout(self.expense_details_row)
         expense_row_layout.setContentsMargins(0, 0, 0, 0)
         expense_row_layout.setSpacing(10)
-        
+
         expense_label = QLabel("Expense Details:")
         expense_label.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
         expense_label.setMinimumWidth(180)
+        expense_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         expense_row_layout.addWidget(expense_label)
-        
+
         self.expense_details_input = QLineEdit()
-        self.expense_details_input.setMinimumHeight(32)
+        self.expense_details_input.setMinimumHeight(FIELD_HEIGHT)
         self.expense_details_input.setPlaceholderText("e.g., Monthly AWS Hosting charges")
         expense_row_layout.addWidget(self.expense_details_input)
-        
-        self.expense_details_row.setVisible(False)  # Hidden for Credit by default
+
+        self.expense_details_row.setVisible(False)
         amount_layout.addWidget(self.expense_details_row)
-        
-        # Enter Amount Row (Label changes based on type)
+
         enter_row = QHBoxLayout()
         enter_row.setSpacing(10)
-        
-        self.amount_label = QLabel("Amount (₹) *:")  # Default for Credit
+
+        self.amount_label = QLabel("Amount (₹) *:")
         self.amount_label.setStyleSheet(f"font-weight: 600; font-size: 13px; color: {Styles.SECONDARY};")
         self.amount_label.setMinimumWidth(180)
+        self.amount_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         enter_row.addWidget(self.amount_label)
-        
+
         self.amount_input = QDoubleSpinBox()
         self.amount_input.setRange(1, 99999999.99)
         self.amount_input.setDecimals(2)
@@ -737,18 +757,17 @@ class VoucherEntryTab(QWidget):
         """)
         enter_row.addWidget(self.amount_input)
         enter_row.addStretch()
-        
         amount_layout.addLayout(enter_row)
-        
-        # Gross Amount (calculated display)
+
         calc_row = QHBoxLayout()
         calc_row.setSpacing(10)
-        
+
         calc_label = QLabel("Gross Amount (Incl. GST):")
         calc_label.setStyleSheet(f"font-weight: 600; font-size: 13px; color: {Styles.SECONDARY};")
         calc_label.setMinimumWidth(180)
+        calc_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         calc_row.addWidget(calc_label)
-        
+
         self.gross_display = QLineEdit()
         self.gross_display.setReadOnly(True)
         self.gross_display.setMinimumWidth(180)
@@ -763,10 +782,7 @@ class VoucherEntryTab(QWidget):
         """)
         calc_row.addWidget(self.gross_display)
         calc_row.addStretch()
-        
         amount_layout.addLayout(calc_row)
-        
-        # Tax Breakup Display
         self.tax_breakup_frame = QFrame()
         self.tax_breakup_frame.setStyleSheet(f"""
             QFrame {{
@@ -776,30 +792,32 @@ class VoucherEntryTab(QWidget):
                 padding: 10px;
             }}
         """)
+
         breakup_layout = QVBoxLayout(self.tax_breakup_frame)
         breakup_layout.setSpacing(4)
-        
+
         breakup_title = QLabel("Tax Breakup (Auto-Calculated)")
-        breakup_title.setStyleSheet(f"font-weight: bold; font-size: 12px; color: {Styles.SECONDARY};")
+        breakup_title.setStyleSheet(
+            f"font-weight: bold; font-size: 12px; color: {Styles.SECONDARY};"
+        )
         breakup_layout.addWidget(breakup_title)
-        
+
         self.taxable_label = QLabel("Base Amount: ₹0.00")
-        self.taxable_label.setStyleSheet("font-size: 12px;")
         breakup_layout.addWidget(self.taxable_label)
-        
+
         self.gst_amount_label = QLabel("+ GST: ₹0.00")
-        self.gst_amount_label.setStyleSheet("font-size: 12px;")
         breakup_layout.addWidget(self.gst_amount_label)
-        
+
         self.tds_amount_label = QLabel("- TDS/WHT: ₹0.00")
-        self.tds_amount_label.setStyleSheet("font-size: 12px;")
         breakup_layout.addWidget(self.tds_amount_label)
-        
+
         self.net_amount_label = QLabel("Net Payable: ₹0.00")
-        self.net_amount_label.setStyleSheet(f"font-weight: bold; font-size: 14px; color: {Styles.PRIMARY};")
+        self.net_amount_label.setStyleSheet(
+            f"font-weight: bold; font-size: 14px; color: {Styles.PRIMARY};"
+        )
         breakup_layout.addWidget(self.net_amount_label)
-        
-        # RCM Journal Entry Preview
+
+        # --- RCM Frame ---
         self.rcm_journal_frame = QFrame()
         self.rcm_journal_frame.setStyleSheet(f"""
             QFrame {{
@@ -810,35 +828,38 @@ class VoucherEntryTab(QWidget):
                 margin-top: 8px;
             }}
         """)
+
         rcm_layout = QVBoxLayout(self.rcm_journal_frame)
         rcm_layout.setSpacing(4)
-        
+
         rcm_title = QLabel("RCM Journal Entry (Foreign Country - Reverse Charge)")
-        rcm_title.setStyleSheet(f"font-weight: bold; font-size: 11px; color: {Styles.ERROR};")
+        rcm_title.setStyleSheet(
+            f"font-weight: bold; font-size: 11px; color: {Styles.ERROR};"
+        )
         rcm_layout.addWidget(rcm_title)
-        
+
         self.rcm_entries_label = QLabel("")
-        self.rcm_entries_label.setStyleSheet("font-size: 11px; font-family: monospace;")
+        self.rcm_entries_label.setStyleSheet(
+            "font-size: 11px; font-family: monospace;"
+        )
         rcm_layout.addWidget(self.rcm_entries_label)
-        
+
         self.rcm_journal_frame.setVisible(False)
         breakup_layout.addWidget(self.rcm_journal_frame)
-        
+
         amount_layout.addWidget(self.tax_breakup_frame)
-        
         layout.addWidget(amount_group)
-        
-        # Narration Section
+
+        # ================= NARRATION =================
         narr_group = QGroupBox("Narration")
         narr_layout = QVBoxLayout(narr_group)
         narr_layout.setContentsMargins(10, 6, 10, 6)
         narr_layout.setSpacing(8)
-        
-        # Auto-generate button
+
         self.auto_narration_row = QWidget()
         auto_btn_layout = QHBoxLayout(self.auto_narration_row)
         auto_btn_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.auto_narration_btn = QPushButton("Auto-Generate Narration")
         self.auto_narration_btn.setStyleSheet(f"""
             QPushButton {{
@@ -854,17 +875,16 @@ class VoucherEntryTab(QWidget):
         """)
         self.auto_narration_btn.setFixedHeight(28)
         self.auto_narration_btn.clicked.connect(self._auto_generate_narration)
+
         auto_btn_layout.addWidget(self.auto_narration_btn)
         auto_btn_layout.addStretch()
-        # ENSURE THIS LINE EXISTS:
-        self.auto_narration_btn.clicked.connect(self._auto_generate_narration)
-        self.auto_narration_row.setVisible(False)  # Hidden for Credit
+
+        self.auto_narration_row.setVisible(False)
         narr_layout.addWidget(self.auto_narration_row)
-        
+
         self.narration_edit = QTextEdit()
         self.narration_edit.setMaximumHeight(60)
         self.narration_edit.setPlaceholderText("Enter transaction description / narration...")
-        # FIX: Added visible color style
         self.narration_edit.setStyleSheet(f"""
             color: {Styles.PRIMARY};
             background-color: #ffffff;
@@ -874,11 +894,13 @@ class VoucherEntryTab(QWidget):
             border-radius: 4px;
         """)
         narr_layout.addWidget(self.narration_edit)
-        
+
         layout.addWidget(narr_group)
         layout.addStretch()
-        
+
         return widget
+
+
     
     def _create_step4(self) -> QWidget:
         """Step 4: Confirm & Print Preview."""
@@ -932,7 +954,13 @@ class VoucherEntryTab(QWidget):
         self.preview_table.setMaximumHeight(220)
         self.preview_table.setColumnCount(4)
         self.preview_table.setHorizontalHeaderLabels(["Ledger", "Dr Amount", "Cr Amount", "Type"])
-        self.preview_table.horizontalHeader().setStretchLastSection(True)
+        header = self.preview_table.horizontalHeader()
+
+        header.setSectionResizeMode(0, QHeaderView.Stretch)          # Ledger expands
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents) # Dr
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents) # Cr
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents) # Type
+        
         self.preview_table.setAlternatingRowColors(True)
         self.preview_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.preview_table.setStyleSheet("""
@@ -1508,13 +1536,34 @@ class VoucherEntryTab(QWidget):
     
     def _validate_step3(self) -> bool:
         amount = self.amount_input.value()
-        if amount <= 0: return False
+        if amount <= 0: 
+            QMessageBox.warning(self, "Validation Error", "Amount must be greater than 0.")
+            return False
+            
         if self._voucher_type == "debit":
-             # Vendor name is in the Combo Box now
-             vendor = self.vendor_combo.currentText().strip()
-             if not vendor or vendor == "-- Select or Enter Vendor Name --":
+             vendor_text = self.vendor_combo.currentText().strip()
+             
+             # 1. Check if empty
+             if not vendor_text or vendor_text == "-- Select or Enter Vendor Name --":
                  QMessageBox.warning(self, "Error", "Vendor Name is required")
                  return False
+                 
+             # 2. RESTRICT ADDITION: Check if exists in the list
+             # We perform a case-insensitive check against the items in the dropdown
+             found = False
+             for i in range(self.vendor_combo.count()):
+                 if self.vendor_combo.itemText(i).lower() == vendor_text.lower():
+                     found = True
+                     break
+             
+             if not found:
+                 QMessageBox.warning(
+                     self, 
+                     "Restricted", 
+                     "New vendors cannot be added here.\nPlease add them via 'Admin Settings > Vendor Master'."
+                 )
+                 return False
+
         return True
     
     def _auto_generate_narration(self):
@@ -1583,19 +1632,8 @@ class VoucherEntryTab(QWidget):
         self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
     
     def _save_step3_data(self):
-        vendor_name = self.vendor_combo.currentText().strip()
         
-        # === AUTO-SAVE NEW VENDOR ===
-        if self._voucher_type == "debit" and vendor_name and vendor_name != "-- Select or Enter Vendor Name --":
-            # Check if exists in current list
-            existing = [v['name'].lower() for v in self.config.get_all_vendors()]
-            
-            if vendor_name.lower() not in existing:
-                # It's new! Save to Master Data
-                self.config.add_vendor({"name": vendor_name, "isActive": True})
-                self.config.save_master_data()
-        # ============================
-        self._populate_vendors()  # Refresh vendor list to include any new addition
+        # self._populate_vendors()  # Refresh vendor list to include any new addition
         self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
         self._step_data['invoice_no'] = self.invoice_no_input.text()
         self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
@@ -1811,4 +1849,4 @@ class VoucherEntryTab(QWidget):
             
         # Identify which button triggered it
         sender = self.sender()
-        self._on_type_changed(sender)
+        self._on_type_changed(sender)   

@@ -60,6 +60,8 @@ class ImportResult:
     # Preview data (first N rows for display)
     preview_data: List[Dict] = field(default_factory=list)
     column_headers: List[str] = field(default_factory=list)
+
+    context: Dict = field(default_factory=dict)
     
     @property
     def success_rate(self) -> float:

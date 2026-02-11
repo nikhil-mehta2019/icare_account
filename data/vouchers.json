@@ -245,7 +245,173 @@
       "invoice_date": "2026-02-10",
       "from_date": null,
       "to_date": null
+    },
+    {
+      "voucher_id": "61881696-bead-4fce-bd33-40831e1075a4",
+      "date": "2026-02-10T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2B4",
+      "account_name": "2B4 - IT & Software Expenses",
+      "amount": 1479720.0,
+      "segment": "",
+      "narration": "",
+      "reference_id": "DB-000-202602-0003",
+      "status": "Pending Review",
+      "created_at": "2026-02-10T12:30:12.401720",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "",
+      "invoice_no": "57924",
+      "invoice_date": "2026-02-10",
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "afa8e8ef-1ee6-4997-b9b7-0c6bd294586d",
+      "date": "2026-02-10T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2D1",
+      "account_name": "2D1 - Miscellaneous Expense",
+      "amount": 17212.66,
+      "segment": "",
+      "narration": "",
+      "reference_id": "DB-000-202602-0004",
+      "status": "Pending Review",
+      "created_at": "2026-02-10T12:37:33.197830",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "",
+      "invoice_no": "123213",
+      "invoice_date": "2026-02-10",
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "4eac9a20-40f7-45ac-b8ab-e007eaefe239",
+      "date": "2026-02-10T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2A2",
+      "account_name": "2A2 - Direct Operating Expense - International",
+      "amount": 3004.2799999999997,
+      "segment": "",
+      "narration": "",
+      "reference_id": "DB-000-202602-0005",
+      "status": "Pending Review",
+      "created_at": "2026-02-10T12:44:26.937126",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "",
+      "invoice_no": "12323",
+      "invoice_date": "2026-02-10",
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "PAYROLL-FEB2026",
+      "voucher_no": "PAYROLL-FEB2026",
+      "voucher_date": "2026-02-10",
+      "narration": "Nanavati team",
+      "status": "Imported",
+      "voucher_type": "Journal",
+      "entries": [
+        {
+          "ledger": "Salary & Wages",
+          "debit_amount": 578750.0,
+          "credit_amount": 0.0,
+          "subcode": "Placement"
+        },
+        {
+          "ledger": "Salary & Wages",
+          "debit_amount": 1120000.0,
+          "credit_amount": 0.0,
+          "subcode": "Corporate"
+        },
+        {
+          "ledger": "Employee Share of PF Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 180000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employer Share of PF Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 180000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employee Share of ESIC Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 3750.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employer Share of ESIC Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 18750.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Professional Tax Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 7000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "TDS on Salary Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 100000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Salary Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 1209250.0,
+          "subcode": ""
+        }
+      ],
+      "amount": 1698750.0,
+      "party_ledger": "Multiple (Journal)"
+    },
+    {
+      "voucher_id": "b50c7e5d-4382-4422-a26b-f7610f9d15f1",
+      "date": "2026-02-11T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2B4",
+      "account_name": "2B4 - IT & Software Expenses",
+      "amount": 12053.7,
+      "segment": "",
+      "narration": "Monthly Retention from VRMDB Services for period 13-Dec-2025 to 11-Feb-2026",
+      "reference_id": "DB-103-202602-0006",
+      "status": "Pending Review",
+      "created_at": "2026-02-11T13:40:31.886195",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "",
+      "invoice_no": "sdas22",
+      "invoice_date": "2026-02-11",
+      "from_date": null,
+      "to_date": null
+    },
+    {
+      "voucher_id": "3f919518-82e9-49b8-8d41-50ca3e1d3cef",
+      "date": "2026-02-11T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2B1",
+      "account_name": "2B1 - Professional Fees",
+      "amount": 1327.5,
+      "segment": "",
+      "narration": "",
+      "reference_id": "DB-000-202602-0007",
+      "status": "Pending Review",
+      "created_at": "2026-02-11T13:47:26.155386",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "VRMDB Services",
+      "invoice_no": "14528",
+      "invoice_date": "2026-02-11",
+      "from_date": null,
+      "to_date": null
     }
   ],
-  "last_modified": "2026-02-10T11:00:52.516309"
+  "last_modified": "2026-02-11T13:47:26.163522"
 }

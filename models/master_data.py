@@ -92,6 +92,7 @@ class MasterData:
             'account_heads': [head.to_dict() for head in self.account_heads],
             'narrations': [narr.to_dict() for narr in self.narrations],
             'segments': [seg.to_dict() for seg in self.segments],
+            'vendors': self.vendors,
             'settings': {
                 'is_frozen': self.settings.is_frozen,
                 'admin_password': self.settings.admin_password,
@@ -112,7 +113,7 @@ class MasterData:
         segments = [
             Segment.from_dict(s) for s in data.get('segments', [])
         ]
-        
+        vendors = data.get('vendors', [])
         settings_data = data.get('settings', {})
         last_modified = settings_data.get('last_modified')
         if isinstance(last_modified, str):
@@ -131,6 +132,7 @@ class MasterData:
             account_heads=account_heads,
             narrations=narrations,
             segments=segments,
+            vendors=vendors,
             settings=settings
         )
     

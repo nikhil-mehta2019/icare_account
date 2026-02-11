@@ -53,7 +53,7 @@ def main():
     
     # Create and show main window
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     
     # Run event loop
     sys.exit(app.exec())

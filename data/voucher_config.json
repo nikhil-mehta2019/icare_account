@@ -1,117 +1,540 @@
 {
   "version": "2.1",
-  "lastModified": "2025-01-24",
-  "homeState": "Maharashtra",
-  
+  "lastModified": "2026-02-11",
+  "homeState": "MH",
   "tallyHeads": [
-    {"value": "1A1", "label": "Direct Operating Income B2C - Domestic", "needsFranchise": true, "type": "CREDIT", "isDomestic": true, "isActive": true},
-    {"value": "1A2", "label": "Direct Operating Income B2C - International", "needsFranchise": true, "type": "CREDIT", "isDomestic": false, "isActive": true},
-    {"value": "1A3", "label": "Direct Operating Income B2B - Domestic", "needsFranchise": true, "type": "CREDIT", "isDomestic": true, "isActive": true},
-    {"value": "1A4", "label": "Direct Operating Income B2B - International", "needsFranchise": true, "type": "CREDIT", "isDomestic": false, "isActive": true},
-    {"value": "1A5", "label": "Franchisee Partnership Income B2B", "needsFranchise": true, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1B1", "label": "Forex Gain", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1B2", "label": "Interest Income", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1B3", "label": "Discount Received", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C1", "label": "Enhancement of Equity Capital", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C2", "label": "Mezzanine Instrument - Convertible", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C3", "label": "Unsecured Loans from Director(s)", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C4", "label": "Loans from Bank/NBFC / Other", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C5", "label": "Sale of Asset", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "1C6", "label": "Miscellaneous Income", "needsFranchise": false, "type": "CREDIT", "isDomestic": null, "isActive": true},
-    {"value": "2A1", "label": "Direct Operating Expense - Domestic", "needsFranchise": false, "type": "DEBIT", "isDomestic": true, "isActive": true},
-    {"value": "2A2", "label": "Direct Operating Expense - International", "needsFranchise": false, "type": "DEBIT", "isDomestic": false, "isActive": true},
-    {"value": "2B1", "label": "Professional Fees", "needsFranchise": false, "type": "DEBIT", "tdsSection": "194J", "isDomestic": null, "isActive": true},
-    {"value": "2B2", "label": "Office Rent", "needsFranchise": false, "type": "DEBIT", "tdsSection": "194I", "isDomestic": null, "isActive": true},
-    {"value": "2B3", "label": "Contractor Payments", "needsFranchise": false, "type": "DEBIT", "tdsSection": "194C", "isDomestic": null, "isActive": true},
-    {"value": "2B4", "label": "IT & Software Expenses", "needsFranchise": false, "type": "DEBIT", "isDomestic": null, "isActive": true},
-    {"value": "2B5", "label": "Travel & Conveyance", "needsFranchise": false, "type": "DEBIT", "isDomestic": null, "isActive": true},
-    {"value": "2C1", "label": "Salary & Wages", "needsFranchise": false, "type": "DEBIT", "tdsSection": "192", "isDomestic": null, "isActive": true},
-    {"value": "2C2", "label": "Staff Welfare", "needsFranchise": false, "type": "DEBIT", "isDomestic": null, "isActive": true},
-    {"value": "2D1", "label": "Miscellaneous Expense", "needsFranchise": false, "type": "DEBIT", "isDomestic": null, "isActive": true}
+    {
+      "value": "1A1",
+      "label": "Direct Operating Income B2C - Domestic",
+      "needsFranchise": true,
+      "type": "CREDIT",
+      "isDomestic": true,
+      "isActive": true
+    },
+    {
+      "value": "1A2",
+      "label": "Direct Operating Income B2C - International",
+      "needsFranchise": true,
+      "type": "CREDIT",
+      "isDomestic": false,
+      "isActive": true
+    },
+    {
+      "value": "1A3",
+      "label": "Direct Operating Income B2B - Domestic",
+      "needsFranchise": true,
+      "type": "CREDIT",
+      "isDomestic": true,
+      "isActive": true
+    },
+    {
+      "value": "1A4",
+      "label": "Direct Operating Income B2B - International",
+      "needsFranchise": true,
+      "type": "CREDIT",
+      "isDomestic": false,
+      "isActive": true
+    },
+    {
+      "value": "1A5",
+      "label": "Franchisee Partnership Income B2B",
+      "needsFranchise": true,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1B1",
+      "label": "Forex Gain",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1B2",
+      "label": "Interest Income",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1B3",
+      "label": "Discount Received",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C1",
+      "label": "Enhancement of Equity Capital",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C2",
+      "label": "Mezzanine Instrument - Convertible",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C3",
+      "label": "Unsecured Loans from Director(s)",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C4",
+      "label": "Loans from Bank/NBFC / Other",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C5",
+      "label": "Sale of Asset",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "1C6",
+      "label": "Miscellaneous Income",
+      "needsFranchise": false,
+      "type": "CREDIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2A1",
+      "label": "Direct Operating Expense - Domestic",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": true,
+      "isActive": true
+    },
+    {
+      "value": "2A2",
+      "label": "Direct Operating Expense - International",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": false,
+      "isActive": true
+    },
+    {
+      "value": "2B1",
+      "label": "Professional Fees",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "tdsSection": "194J",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2B2",
+      "label": "Office Rent",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "tdsSection": "194I",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2B3",
+      "label": "Contractor Payments",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "tdsSection": "194C",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2B4",
+      "label": "IT & Software Expenses",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2B5",
+      "label": "Travel & Conveyance",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2C1",
+      "label": "Salary & Wages",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "tdsSection": "192",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2C2",
+      "label": "Staff Welfare",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": null,
+      "isActive": true
+    },
+    {
+      "value": "2D1",
+      "label": "Miscellaneous Expense",
+      "needsFranchise": false,
+      "type": "DEBIT",
+      "isDomestic": null,
+      "isActive": true
+    }
   ],
-  
   "countries": [
-    {"value": "000", "label": "Global / Rest of World", "isForeign": true, "isActive": true},
-    {"value": "356", "label": "India", "isForeign": false, "isActive": true},
-    {"value": "404", "label": "Kenya", "isForeign": true, "isActive": true},
-    {"value": "800", "label": "Uganda", "isForeign": true, "isActive": true},
-    {"value": "834", "label": "Tanzania", "isForeign": true, "isActive": true},
-    {"value": "840", "label": "United States", "isForeign": true, "isActive": true},
-    {"value": "826", "label": "United Kingdom", "isForeign": true, "isActive": true},
-    {"value": "784", "label": "UAE", "isForeign": true, "isActive": true},
-    {"value": "276", "label": "Germany", "isForeign": true, "isActive": true},
-    {"value": "036", "label": "Australia", "isForeign": true, "isActive": true},
-    {"value": "124", "label": "Canada", "isForeign": true, "isActive": true}
+    {
+      "value": "000",
+      "label": "Global / Rest of World",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "356",
+      "label": "India",
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "404",
+      "label": "Kenya",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "800",
+      "label": "Uganda",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "834",
+      "label": "Tanzania",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "840",
+      "label": "United States",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "826",
+      "label": "United Kingdom",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "784",
+      "label": "UAE",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "276",
+      "label": "Germany",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "036",
+      "label": "Australia",
+      "isForeign": true,
+      "isActive": true
+    },
+    {
+      "value": "124",
+      "label": "Canada",
+      "isForeign": true,
+      "isActive": true
+    }
   ],
-  
   "products": [
-    {"value": "000", "label": "N/A - Corporate / Indirect Expense", "isActive": true},
-    {"value": "101", "label": "Eldercare - Essential Skills", "isActive": true},
-    {"value": "102", "label": "Eldercare - Competency", "isActive": true},
-    {"value": "103", "label": "Eldercare - RPL", "isActive": true},
-    {"value": "201", "label": "Childcare - L1 Cert", "isActive": true},
-    {"value": "202", "label": "Childcare - L2 TUV", "isActive": true},
-    {"value": "203", "label": "Childcare - RPL", "isActive": true},
-    {"value": "204", "label": "Reserved", "isActive": false},
-    {"value": "301", "label": "Franchise Fee", "isActive": true},
-    {"value": "302", "label": "Royalty / Rev Share", "isActive": true},
-    {"value": "303", "label": "Bulk Content License", "isActive": true},
-    {"value": "401", "label": "Re-Certification", "isActive": true},
-    {"value": "701", "label": "Micro Course 1", "isActive": true},
-    {"value": "702", "label": "Micro Course 2", "isActive": true},
-    {"value": "703", "label": "Micro Course 3", "isActive": true},
-    {"value": "901", "label": "Course Material", "isActive": true},
-    {"value": "902", "label": "Printed Certificate", "isActive": true}
+    {
+      "value": "000",
+      "label": "N/A - Corporate / Indirect Expense",
+      "isActive": true
+    },
+    {
+      "value": "101",
+      "label": "Eldercare - Essential Skills",
+      "isActive": true
+    },
+    {
+      "value": "102",
+      "label": "Eldercare - Competency",
+      "isActive": true
+    },
+    {
+      "value": "103",
+      "label": "Eldercare - RPL",
+      "isActive": true
+    },
+    {
+      "value": "201",
+      "label": "Childcare - L1 Cert",
+      "isActive": true
+    },
+    {
+      "value": "202",
+      "label": "Childcare - L2 TUV",
+      "isActive": true
+    },
+    {
+      "value": "203",
+      "label": "Childcare - RPL",
+      "isActive": true
+    },
+    {
+      "value": "204",
+      "label": "Reserved",
+      "isActive": false
+    },
+    {
+      "value": "301",
+      "label": "Franchise Fee",
+      "isActive": true
+    },
+    {
+      "value": "302",
+      "label": "Royalty / Rev Share",
+      "isActive": true
+    },
+    {
+      "value": "303",
+      "label": "Bulk Content License",
+      "isActive": true
+    },
+    {
+      "value": "401",
+      "label": "Re-Certification",
+      "isActive": true
+    },
+    {
+      "value": "701",
+      "label": "Micro Course 1",
+      "isActive": true
+    },
+    {
+      "value": "702",
+      "label": "Micro Course 2",
+      "isActive": true
+    },
+    {
+      "value": "703",
+      "label": "Micro Course 3",
+      "isActive": true
+    },
+    {
+      "value": "901",
+      "label": "Course Material",
+      "isActive": true
+    },
+    {
+      "value": "902",
+      "label": "Printed Certificate",
+      "isActive": true
+    }
   ],
-  
   "businessSegments": [
-    {"value": "RETAIL", "label": "Retail", "isActive": true},
-    {"value": "FRANCHISE", "label": "Franchise", "isActive": true},
-    {"value": "PLACEMENT", "label": "Placement", "isActive": true},
-    {"value": "HOMECARE", "label": "Homecare", "isActive": true},
-    {"value": "CORPORATE", "label": "Corporate", "isActive": true}
+    {
+      "value": "RETAIL",
+      "label": "Retail",
+      "isActive": true
+    },
+    {
+      "value": "FRANCHISE",
+      "label": "Franchise",
+      "isActive": true
+    },
+    {
+      "value": "PLACEMENT",
+      "label": "Placement",
+      "isActive": true
+    },
+    {
+      "value": "HOMECARE",
+      "label": "Homecare",
+      "isActive": true
+    },
+    {
+      "value": "CORPORATE",
+      "label": "Corporate",
+      "isActive": true
+    }
   ],
-  
   "franchises": [
-    {"value": "00", "label": "N/A or Head Office", "isActive": true},
-    {"value": "01", "label": "Franchisee A", "isActive": true},
-    {"value": "02", "label": "Franchisee B", "isActive": true},
-    {"value": "03", "label": "Franchisee C", "isActive": true},
-    {"value": "04", "label": "Franchisee D", "isActive": true},
-    {"value": "05", "label": "Franchisee E", "isActive": true}
+    {
+      "value": "00",
+      "label": "N/A or Head Office",
+      "isActive": true
+    },
+    {
+      "value": "01",
+      "label": "Franchisee A",
+      "isActive": true
+    },
+    {
+      "value": "02",
+      "label": "Franchisee B",
+      "isActive": true
+    },
+    {
+      "value": "03",
+      "label": "Franchisee C",
+      "isActive": true
+    },
+    {
+      "value": "04",
+      "label": "Franchisee D",
+      "isActive": true
+    },
+    {
+      "value": "05",
+      "label": "Franchisee E",
+      "isActive": true
+    }
   ],
-  
   "pointOfSupply": [
-    {"value": "MH", "label": "Maharashtra", "isHomeState": true, "isForeign": false, "isActive": true},
-    {"value": "DL", "label": "Delhi", "isHomeState": false, "isForeign": false, "isActive": true},
-    {"value": "KA", "label": "Karnataka", "isHomeState": false, "isForeign": false, "isActive": true},
-    {"value": "TN", "label": "Tamil Nadu", "isHomeState": false, "isForeign": false, "isActive": true},
-    {"value": "WB", "label": "West Bengal", "isHomeState": false, "isForeign": false, "isActive": true},
-    {"value": "OT", "label": "Other Territory", "isHomeState": false, "isForeign": false, "isActive": true},
-    {"value": "FC", "label": "Foreign Country", "isHomeState": false, "isForeign": true, "isActive": true}
+    {
+      "value": "MH",
+      "label": "Maharashtra",
+      "isHomeState": true,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "DL",
+      "label": "Delhi",
+      "isHomeState": false,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "KA",
+      "label": "Karnataka",
+      "isHomeState": false,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "TN",
+      "label": "Tamil Nadu",
+      "isHomeState": false,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "WB",
+      "label": "West Bengal",
+      "isHomeState": false,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "OT",
+      "label": "Other Territory",
+      "isHomeState": false,
+      "isForeign": false,
+      "isActive": true
+    },
+    {
+      "value": "FC",
+      "label": "Foreign Country",
+      "isHomeState": false,
+      "isForeign": true,
+      "isActive": true
+    }
   ],
-  
   "tdsLedgers": [
-    {"value": "TDS_194C", "label": "TDS Payable on Contract – FY 2025-26", "section": "194C", "isActive": true},
-    {"value": "TDS_194J", "label": "TDS Payable on Professional Services – FY 2025-26", "section": "194J", "isActive": true},
-    {"value": "TDS_194I", "label": "TDS Payable on Rent – FY 2025-26", "section": "194I", "isActive": true},
-    {"value": "TDS_194H", "label": "TDS Payable – FY 2025-26", "section": "194H", "isActive": true},
-    {"value": "TDS_195", "label": "TDS Payable u/s 195 – FY 2025-26", "section": "195", "isActive": true}
+    {
+      "value": "TDS_194C",
+      "label": "TDS Payable on Contract – FY 2025-26",
+      "section": "194C",
+      "isActive": true
+    },
+    {
+      "value": "TDS_194J",
+      "label": "TDS Payable on Professional Services – FY 2025-26",
+      "section": "194J",
+      "isActive": true
+    },
+    {
+      "value": "TDS_194I",
+      "label": "TDS Payable on Rent – FY 2025-26",
+      "section": "194I",
+      "isActive": true
+    },
+    {
+      "value": "TDS_194H",
+      "label": "TDS Payable – FY 2025-26",
+      "section": "194H",
+      "isActive": true
+    },
+    {
+      "value": "TDS_195",
+      "label": "TDS Payable u/s 195 – FY 2025-26",
+      "section": "195",
+      "isActive": true
+    }
   ],
-  
-  "gstRates": [0.0, 5.0, 12.0, 18.0, 28.0],
+  "gstRates": [
+    0.0,
+    5.0,
+    12.0,
+    18.0,
+    28.0
+  ],
   "defaultGstRate": 18.0,
-  
   "tdsRates": {
-    "192": {"name": "Salary (192)", "rate": 10.0},
-    "194A": {"name": "Interest (194A)", "rate": 10.0},
-    "194C": {"name": "Contractors (194C)", "rate": 2.0},
-    "194H": {"name": "Commission (194H)", "rate": 5.0},
-    "194I": {"name": "Rent (194I)", "rate": 10.0},
-    "194J": {"name": "Professional (194J)", "rate": 10.0},
-    "195": {"name": "Non-Resident (195)", "rate": 20.0}
+    "192": {
+      "name": "Salary (192)",
+      "rate": 10.0
+    },
+    "194A": {
+      "name": "Interest (194A)",
+      "rate": 10.0
+    },
+    "194C": {
+      "name": "Contractors (194C)",
+      "rate": 2.0
+    },
+    "194H": {
+      "name": "Commission (194H)",
+      "rate": 5.0
+    },
+    "194I": {
+      "name": "Rent (194I)",
+      "rate": 10.0
+    },
+    "194J": {
+      "name": "Professional (194J)",
+      "rate": 10.0
+    },
+    "195": {
+      "name": "Non-Resident (195)",
+      "rate": 20.0
+    }
   },
-  
   "gstLedgers": {
     "inputCgst": "Input CGST",
     "inputSgst": "Input SGST",
@@ -120,7 +543,6 @@
     "outputSgst": "Output SGST",
     "outputIgst": "Output IGST"
   },
-  
   "validation": {
     "maxBackdateDays": 7,
     "periodSuggestDays": 60,

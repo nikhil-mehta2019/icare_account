@@ -299,8 +299,7 @@ class DebitVoucherImportService:
             result.add_error(0, 'NO_DATA', "No valid data rows found in file")
             
         return vouchers
-
-    def import_payroll_cost_csv(self, filepath: str, voucher_date: datetime) -> Tuple[List[JournalVoucher], ImportResult]:
+    def import_payroll_cost_csv(self, filepath: str, voucher_date: datetime, remarks: str= "") -> Tuple[List[JournalVoucher], ImportResult]:
         """Import Payroll Cost from CSV or Excel."""
         result = ImportResult(
             filename=os.path.basename(filepath),
