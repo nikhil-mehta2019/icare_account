@@ -9,6 +9,8 @@ from pathlib import Path
 from models.voucher import Voucher, VoucherStatus
 from models.account_head import VoucherType
 from models.import_result import ImportResult, ImportStatus, ImportError
+from services.data_service import DataService
+from services.voucher_config_service import get_voucher_config
 
 
 class ImportService:
@@ -21,9 +23,11 @@ class ImportService:
     - Preview before confirmation
     """
     
-    def __init__(self):
+    def __init__(self, data_service: Optional[DataService] = None):
         """Initialize import service."""
         self._current_import: Optional[ImportResult] = None
+        self.data_service = data_service or DataService()
+        self.config = get_voucher_config(self.data_service)
     
     def parse_csv_preview(self, filepath: str, max_preview_rows: int = 10) -> ImportResult:
         """
@@ -120,6 +124,154 @@ class ImportService:
         
         self._current_import = result
         return result
+
+    def import_credit_sales_csv(
+        self,
+        filepath: str,
+        from_date: datetime,
+        to_date: datetime,
+        income_head_code: str,
+        income_head_name: str,
+        bank_head_name: str
+    ) -> ImportResult:
+        """
+        Import credit (sales) vouchers in bulk.
+
+        Required CSV fields:
+        - Business Segment
+        - Product Code
+        - Location
+        - Amount
+        - SGST (domestic if applicable)
+        - CGST (domestic if applicable)
+        - IGST (domestic if applicable)
+
+        Import-time selections:
+        - from_date, to_date
+        - corresponding income head (code/name)
+        - corresponding bank account ledger
+        """
+        result = ImportResult(
+            filename=os.path.basename(filepath),
+            import_type='Credit Sales Bulk',
+            status=ImportStatus.IN_PROGRESS
+        )
+
+        required_columns = [
+            'Business Segment',
+            'Product Code',
+            'Location',
+            'Amount',
+            'SGST',
+            'CGST',
+            'IGST'
+        ]
+
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                headers = reader.fieldnames or []
+                result.column_headers = headers
+
+                missing = [c for c in required_columns if c not in headers]
+                if missing:
+                    result.status = ImportStatus.FAILED
+                    result.add_error(0, 'MISSING_COLUMNS', f"Missing required columns: {', '.join(missing)}")
+                    self._current_import = result
+                    return result
+
+                for row_num, row in enumerate(reader, start=2):
+                    result.total_rows += 1
+                    try:
+                        amount = self._parse_amount(row.get('Amount', 0))
+                        cgst = self._parse_amount(row.get('CGST', 0))
+                        sgst = self._parse_amount(row.get('SGST', 0))
+                        igst = self._parse_amount(row.get('IGST', 0))
+
+                        if amount <= 0:
+                            result.skipped_rows += 1
+                            continue
+
+                        product_code = str(row.get('Product Code') or 'MISC').strip() or 'MISC'
+                        segment = str(row.get('Business Segment') or '').strip()
+                        location = str(row.get('Location') or '').strip()
+
+                        voucher_code = self.config.generate_voucher_code('credit', product_code)
+
+                        voucher = Voucher(
+                            date=datetime.now(),
+                            voucher_type=VoucherType.CREDIT,
+                            account_code=income_head_code,
+                            account_name=income_head_name,
+                            amount=amount,
+                            segment=segment,
+                            narration=f"{segment or 'B2C'} Billing, for the period {from_date.strftime('%d-%b-%Y')} to {to_date.strftime('%d-%b-%Y')} - Bulk import",
+                            reference_id=voucher_code,
+                            status=VoucherStatus.PENDING_REVIEW,
+                            source='Bulk Import',
+                            from_date=from_date.date() if isinstance(from_date, datetime) else from_date,
+                            to_date=to_date.date() if isinstance(to_date, datetime) else to_date
+                        )
+
+                        # Additional details for accounting-entry rendering/export.
+                        voucher.party_name = bank_head_name  # Dr Bank Ledger
+                        voucher.product_code = product_code
+                        voucher.location = location
+                        voucher.cgst_amount = cgst
+                        voucher.sgst_amount = sgst
+                        voucher.igst_amount = igst
+                        voucher.cgst_ledger = 'CGST Payable'
+                        voucher.sgst_ledger = 'SGST Payable'
+                        voucher.igst_ledger = 'IGST Payable'
+                        voucher.gross_amount = amount + cgst + sgst + igst
+
+                        result.add_voucher(voucher)
+                        result.successful_rows += 1
+
+                    except Exception as e:
+                        result.add_error(row_num, 'PARSE_ERROR', str(e), raw_data=row)
+
+            result.complete()
+
+        except Exception as e:
+            result.status = ImportStatus.FAILED
+            result.add_error(0, 'FILE_READ_ERROR', str(e))
+
+        self._current_import = result
+        return result
+
+    def _parse_amount(self, value: object) -> float:
+        text = str(value or '').replace(',', '').replace('₹', '').replace('$', '').strip()
+        if not text:
+            return 0.0
+        try:
+            return float(text)
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _determine_b2c_billing_scope(self, row: Dict) -> str:
+        """Classify imported row as Domestic or International billing."""
+        country_val = (
+            row.get('Country')
+            or row.get('Billing Country')
+            or row.get('country')
+            or row.get('billingCountry')
+            or row.get('countryCode')
+            or ''
+        )
+        country = str(country_val).strip().lower()
+
+        if not country:
+            return "Domestic"
+
+        domestic_tokens = {'india', 'in', 'ind'}
+        return "Domestic" if country in domestic_tokens else "International"
+
+    def _generate_bulk_credit_narration(self, row: Dict, tx_date: datetime) -> str:
+        """Generate bulk import credit narration in required format."""
+        scope = self._determine_b2c_billing_scope(row)
+        period_str = tx_date.strftime('%b-%Y')
+        return f"{scope} B2C Billing, for the period {period_str} - Bulk import"
     
     def _map_wix_row_to_voucher(self, row: Dict, row_num: int) -> Optional[Voucher]:
         """
@@ -169,6 +321,10 @@ class ImportService:
             return None  # Skip zero/negative amounts
         
         # Create voucher with Wix defaults
+        voucher_code = self.config.generate_voucher_code("credit", "WIX")
+
+        narration = self._generate_bulk_credit_narration(row, date)
+
         voucher = Voucher(
             date=date,
             voucher_type=VoucherType.CREDIT,  # Sales are credits
@@ -176,8 +332,8 @@ class ImportService:
             account_name='Sales Income - Retail (Wix) - Online Cert - Basic',
             amount=amount,
             segment='Retail',
-            narration=f'Wix Ord: {order_id} - Basic Level' if order_id else 'Wix Online Sale',
-            reference_id=order_id,
+            narration=narration,
+            reference_id=voucher_code,
             status=VoucherStatus.PENDING_REVIEW,
             source='Wix Import'
         )

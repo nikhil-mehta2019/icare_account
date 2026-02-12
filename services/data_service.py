@@ -225,11 +225,13 @@ class DataService:
 
     def get_next_sequence(self, voucher_type: str) -> int:
         """
-        Calculate next sequence number for the given voucher type in the current month.
-        Separates 'Debit' and 'Credit' sequences.
+        Calculate next sequence number for the given voucher type.
+
+        Sequence is continuous across all saved vouchers for a type and does not
+        reset by month. This keeps numbering unique and sequential for both manual
+        entry and bulk imports.
         """
         self.load_vouchers()
-        current_month_str = datetime.now().strftime("%Y%m")
         
         max_seq = 0
         
@@ -249,20 +251,26 @@ class DataService:
             if str(v_type_val).lower() != target_type:
                 continue
 
-            # 2. Get the Code (reference_id)
-            code = getattr(v, 'reference_id', '')
+            # 2. Gather potential code sources used by different flows.
+            code_candidates = [
+                getattr(v, 'reference_id', ''),
+                getattr(v, 'voucher_no', ''),
+            ]
             if isinstance(v, dict):
-                code = v.get('reference_id', '')
-            
-            if not code:
-                continue
+                code_candidates = [
+                    v.get('reference_id', ''),
+                    v.get('voucher_no', ''),
+                ]
 
-            # 3. Parse Code: [Type]-[Product]-[YYYYMM]-[Seq]
-            # Example: DB-MSC-202602-0045
-            parts = code.split('-')
-            
-            # Ensure it matches current month pattern
-            if len(parts) >= 4 and parts[-2] == current_month_str:
+            for code in code_candidates:
+                if not code:
+                    continue
+
+                # Parse tail sequence from [Type]-[Product]-[YYYYMM]-[Seq]
+                parts = str(code).split('-')
+                if len(parts) < 4:
+                    continue
+
                 try:
                     seq = int(parts[-1])
                     if seq > max_seq:
