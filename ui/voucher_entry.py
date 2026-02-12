@@ -1291,7 +1291,7 @@ class VoucherEntryTab(QWidget):
             if hasattr(self, 'auto_narration_row'):
                 self.auto_narration_row.setVisible(False)
             
-            self.amount_label.setText("Amount (₹) *:")
+            self.amount_label.setText("Gross Amount (incl. GST) (₹) *:")
             self._gst_is_additive = False 
         else:  
             # DEBIT: Show Debit-specific fields
@@ -1386,6 +1386,41 @@ class VoucherEntryTab(QWidget):
         if state_code:
             gst_type = self.config.determine_gst_type(state_code)
             is_foreign = self.config.is_pos_foreign(state_code)
+
+            # CREDIT RULE:
+            # - No RCM concept for sales.
+            # - Domestic sales: GST can be applicable or not applicable.
+            # - International sales: GST exempt (forced Not Applicable).
+            if self._voucher_type == "credit":
+                self.rcm_indicator.setVisible(False)
+                self._is_rcm = False
+
+                if is_foreign:
+                    self.gst_type_label.setText("GST Type: Exempt (International Sales)")
+                    self.pos_indicator.setText("International")
+                    self.pos_indicator.setStyleSheet(f"color: {Styles.INFO}; font-size: 11px; font-weight: bold;")
+
+                    # Force GST Not Applicable for international credit sales
+                    self.gst_app_combo.setCurrentIndex(1)
+                    self.gst_app_combo.setEnabled(False)
+                    self.gst_details_frame.setVisible(False)
+                    self.gst_split_label.setText("(GST Exempt)")
+                elif gst_type == "CGST_SGST":
+                    self.gst_type_label.setText("GST Type: CGST + SGST (Domestic Intra-State)")
+                    self.pos_indicator.setText("Domestic - Intra-State")
+                    self.pos_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold;")
+                    self.gst_app_combo.setEnabled(True)
+                    self._update_gst_split()
+                else:
+                    self.gst_type_label.setText("GST Type: IGST (Domestic Inter-State)")
+                    self.pos_indicator.setText("Domestic - Inter-State")
+                    self.pos_indicator.setStyleSheet(f"color: {Styles.WARNING}; font-size: 11px; font-weight: bold;")
+                    self.gst_app_combo.setEnabled(True)
+                    self._update_gst_split()
+
+                self._on_gst_app_changed(self.gst_app_combo.currentIndex())
+                self._validate_step2()
+                return
             
             if is_foreign:
                 self.gst_type_label.setText("GST Type: RCM (Reverse Charge)")
@@ -1529,9 +1564,30 @@ class VoucherEntryTab(QWidget):
         if not self.tally_head_combo.currentData():
             return False
         return True
+
+    def _is_b2b_segment(self, segment_code: str, segment_name: str) -> bool:
+        """Treat Corporate segment as B2B for credit manual-entry routing."""
+        code = (segment_code or "").strip().lower()
+        name = (segment_name or "").strip().lower()
+        return code == "corporate" or name == "corporate"
     
     def _validate_step2(self) -> bool:
-        if not self.pos_combo.currentData(): return False
+        if not self.pos_combo.currentData():
+            return False
+
+        if self._voucher_type == "credit":
+            seg_code = self.segment_combo.currentData()
+            seg_name = self.segment_combo.currentText()
+
+            if not self._is_b2b_segment(seg_code, seg_name):
+                QMessageBox.warning(
+                    self,
+                    "Routing Rule",
+                    "Credit B2C transactions must be done through Bulk Import.\n"
+                    "Only B2B (Corporate) credit transactions are allowed in manual entry."
+                )
+                return False
+
         return True
     
     def _validate_step3(self) -> bool:
@@ -1583,6 +1639,39 @@ class VoucherEntryTab(QWidget):
         if not vnd or vnd.startswith("--"): vnd = "Vendor"
         
         self.narration_edit.setText(f"{exp} from {vnd} {period_str}")
+
+    def _format_period_for_narration(self) -> str:
+        """Return standardized period phrase for narration."""
+        from_str = self.from_date.date().toString("dd-MMM-yyyy")
+        to_str = self.to_date.date().toString("dd-MMM-yyyy")
+        return f"for the period {from_str} to {to_str}"
+
+    def _get_selected_franchise_name(self) -> str:
+        """Return franchise name from master for selected franchise code."""
+        franchise_code = self.franchise_combo.currentData()
+        franchises = self.config.get_franchises()
+
+        for franchise in franchises:
+            if franchise.code == franchise_code:
+                return franchise.name
+
+        # Fallback for legacy display values like "CODE - Name"
+        label = self.franchise_combo.currentText().strip()
+        if " - " in label:
+            return label.split(" - ", 1)[1].strip()
+
+        return label
+
+    def _generate_credit_manual_narration(self) -> str:
+        """Generate credit narration as per business format."""
+        free_text = self.narration_edit.toPlainText().strip() or "Sales billing"
+        period_text = self._format_period_for_narration()
+
+        franchise_name = self._get_selected_franchise_name()
+        if not franchise_name or franchise_name.startswith("--"):
+            franchise_name = "Franchisee"
+
+        return f"{free_text}, {period_text} billed to {franchise_name}"
         
     
     # === Navigation ===
@@ -1637,7 +1726,10 @@ class VoucherEntryTab(QWidget):
         self._step_data['vendor_name'] = self.vendor_combo.currentText() # Get from Combo
         self._step_data['invoice_no'] = self.invoice_no_input.text()
         self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
-        self._step_data['narration'] = self.narration_edit.toPlainText()
+        if self._voucher_type == "credit":
+            self._step_data['narration'] = self._generate_credit_manual_narration()
+        else:
+            self._step_data['narration'] = self.narration_edit.toPlainText()
     
     def _build_preview(self):
         """Build the preview table and calculate totals."""
@@ -1682,7 +1774,8 @@ class VoucherEntryTab(QWidget):
         # === CREDIT VOUCHER PREVIEW ===
         else: 
              # 1. Dr Party (Gross)
-             self._add_preview_row("Party / Customer A/c", f"₹{gross:,.2f}", "", "Party")
+             franchise_name = self._get_selected_franchise_name() or "Party / Customer A/c"
+             self._add_preview_row(franchise_name, f"₹{gross:,.2f}", "", "Party")
              total_dr += gross
              
              # 2. Cr Income
@@ -1731,7 +1824,7 @@ class VoucherEntryTab(QWidget):
                 date=datetime.combine(self._step_data['voucher_date'], datetime.min.time()),
                 voucher_type=VoucherType.CREDIT if self._voucher_type=="credit" else VoucherType.DEBIT,
                 account_code=self._step_data.get('head_code'),
-                amount=self._step_data.get('gross_amount', 0),
+                amount=(self._step_data.get('taxable', 0) if self._voucher_type=="credit" else self._step_data.get('gross_amount', 0)),
                 narration=self._step_data.get('narration', ''),
                 reference_id=self._step_data.get('voucher_code', ''),
                 status=VoucherStatus.PENDING_REVIEW,
