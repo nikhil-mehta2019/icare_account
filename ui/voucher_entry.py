@@ -1166,6 +1166,9 @@ class VoucherEntryTab(QWidget):
         
         heads = self.config.get_tally_heads(self._voucher_type)
         for head in heads:
+            # OPTIONAL: Hide B2C heads if removing B2C segment
+            if "B2C" in head.name:
+                continue
             self.tally_head_combo.addItem(f"{head.code} - {head.name}", head.code)
     
     def _populate_countries(self, exclude_india: bool = False):
@@ -1231,6 +1234,9 @@ class VoucherEntryTab(QWidget):
         self.segment_combo.clear()
         segments = self.config.get_business_segments()
         for seg in segments:
+            # FILTER: specific B2C/Retail check
+            if seg.code == "RETAIL":
+                continue
             self.segment_combo.addItem(seg.name, seg.code)
     
     def _populate_tds_ledgers(self):
