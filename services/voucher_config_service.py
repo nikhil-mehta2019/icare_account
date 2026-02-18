@@ -84,6 +84,9 @@ class VoucherConfigService:
         self._loaded = False
         self.master_data = None
         self.data_service = DataService()
+        # Runtime sequence cache avoids duplicate IDs when multiple vouchers are
+        # generated in-memory (e.g., bulk imports) before persisting.
+        self._sequence_cache: Dict[str, int] = {}
         self.load_config()
     
     def load_config(self) -> bool:
@@ -471,10 +474,14 @@ class VoucherConfigService:
         """
         now = datetime.now()
         v_type = voucher_type.lower()
-        
-        # 1. Get separate sequence from DataService for the specific type
-        # This ensures DB-0001 and CR-0001 can exist simultaneously
-        sequence_num = self.data_service.get_next_sequence(v_type)
+
+        # 1. Get separate sequence from DataService for the specific type.
+        # Cache the current high-water mark so repeated calls in the same
+        # runtime session remain strictly sequential even before save.
+        if v_type not in self._sequence_cache:
+            self._sequence_cache[v_type] = self.data_service.get_next_sequence(v_type)
+        sequence_num = self._sequence_cache[v_type]
+        self._sequence_cache[v_type] += 1
         
         # 2. Get product prefix
         products = self.get_products()
