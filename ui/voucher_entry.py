@@ -1425,7 +1425,9 @@ class VoucherEntryTab(QWidget):
                     self._update_gst_split()
 
                 self._on_gst_app_changed(self.gst_app_combo.currentIndex())
-                self._validate_step2()
+
+                self._validate_step2(show_message=False)
+
                 return
             
             if is_foreign:
@@ -1453,12 +1455,12 @@ class VoucherEntryTab(QWidget):
             self.rcm_indicator.setVisible(False)
             self._is_rcm = False
         
-        self._validate_step2()
+        self._validate_step2(show_message=False)
     
     def _on_gst_app_changed(self, index):
         is_applicable = self.gst_app_combo.currentData() == "Y"
         self.gst_details_frame.setVisible(is_applicable)
-        self._validate_step2()
+        self._validate_step2(show_message=False)
     
     def _update_gst_split(self):
         rate = self.gst_rate_combo.currentData()
@@ -1476,7 +1478,7 @@ class VoucherEntryTab(QWidget):
         self.tds_rate_label.setEnabled(is_applicable)
         self.tds_rate_spin.setEnabled(is_applicable)
         if not is_applicable: self.tds_rate_spin.setValue(0)
-        self._validate_step2()
+        self._validate_step2(show_message=False)
     
     def _update_voucher_code(self):
         product_code = self.product_combo.currentData() or "MISC"
@@ -1577,7 +1579,7 @@ class VoucherEntryTab(QWidget):
         name = (segment_name or "").strip().lower()
         return code == "corporate" or name == "corporate"
     
-    def _validate_step2(self) -> bool:
+    def _validate_step2(self, show_message: bool = False) -> bool:
         if not self.pos_combo.currentData():
             return False
 
@@ -1586,12 +1588,13 @@ class VoucherEntryTab(QWidget):
             seg_name = self.segment_combo.currentText()
 
             if not self._is_b2b_segment(seg_code, seg_name):
-                QMessageBox.warning(
-                    self,
-                    "Routing Rule",
-                    "Credit B2C transactions must be done through Bulk Import.\n"
-                    "Only B2B (Corporate) credit transactions are allowed in manual entry."
-                )
+                if show_message:
+                    QMessageBox.warning(
+                        self,
+                        "Routing Rule",
+                        "Credit B2C transactions must be done through Bulk Import.\n"
+                        "Only B2B (Corporate) credit transactions are allowed in manual entry."
+                    )
                 return False
 
         return True
@@ -1687,7 +1690,7 @@ class VoucherEntryTab(QWidget):
                 self._save_step1_data()
                 self._go_to_step(2)
         elif self._current_step == 2:
-            if self._validate_step2():
+            if self._validate_step2(show_message=True):
                 self._save_step2_data()
                 self._go_to_step(3)
         elif self._current_step == 3:
