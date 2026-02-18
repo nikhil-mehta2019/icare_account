@@ -1,6 +1,5 @@
-from unittest import result
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QGroupBox, QMessageBox,
     QTableWidget, QTableWidgetItem, QFileDialog,
     QDateEdit, QScrollArea, QHeaderView,QLineEdit
@@ -70,7 +69,9 @@ class BulkImportTab(QWidget):
 
     def _period_section(self):
         group = QGroupBox("Period Details (Required)")
-        layout = QHBoxLayout(group)
+        layout = QGridLayout(group)
+        layout.setHorizontalSpacing(12)
+        layout.setVerticalSpacing(8)
 
         self.voucher_date = QDateEdit(QDate.currentDate())
         self.from_date = QDateEdit(QDate.currentDate())
@@ -86,20 +87,17 @@ class BulkImportTab(QWidget):
             d.setDisplayFormat("dd-MMM-yyyy")
             d.setStyleSheet(Styles.get_compact_date_style())
 
-        layout.addWidget(QLabel("Voucher Date:"))
-        layout.addWidget(self.voucher_date)
-        layout.addSpacing(20)
-        layout.addWidget(QLabel("From:"))
-        layout.addWidget(self.from_date)
-        layout.addWidget(QLabel("To:"))
-        layout.addWidget(self.to_date)
-        
+        layout.addWidget(QLabel("Voucher Date:"), 0, 0)
+        layout.addWidget(self.voucher_date, 0, 1)
+        layout.addWidget(QLabel("From:"), 0, 2)
+        layout.addWidget(self.from_date, 0, 3)
+        layout.addWidget(QLabel("To:"), 0, 4)
+        layout.addWidget(self.to_date, 0, 5)
+
         # ADDED: Adding the remarks widgets to the layout
-        layout.addSpacing(20)
-        layout.addWidget(QLabel("Details/Remarks:"))
-        layout.addWidget(self.import_remarks)
-        
-        layout.addStretch()
+        layout.addWidget(QLabel("Details/Remarks:"), 1, 0)
+        layout.addWidget(self.import_remarks, 1, 1, 1, 5)
+        layout.setColumnStretch(6, 1)
 
         return group
 
