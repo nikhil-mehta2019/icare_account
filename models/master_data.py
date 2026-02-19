@@ -19,6 +19,11 @@ class MasterDataSettings:
     last_modified: datetime = field(default_factory=datetime.now)
     modified_by: str = "System"
 
+    # === NEW: Auto Backup Settings ===
+    backup_directory: str = ""
+    backup_retention_count: int = 5
+    auto_backup_enabled: bool = True
+
 
 @dataclass 
 class MasterData:
@@ -97,7 +102,10 @@ class MasterData:
                 'is_frozen': self.settings.is_frozen,
                 'admin_password': self.settings.admin_password,
                 'last_modified': self.settings.last_modified.isoformat(),
-                'modified_by': self.settings.modified_by
+                'modified_by': self.settings.modified_by,
+                'backup_directory': getattr(self.settings, 'backup_directory', ''),
+                'backup_retention_count': getattr(self.settings, 'backup_retention_count', 30),
+                'auto_backup_enabled': getattr(self.settings, 'auto_backup_enabled', True)
             }
         }
     
@@ -125,7 +133,10 @@ class MasterData:
             is_frozen=settings_data.get('is_frozen', True),
             admin_password=settings_data.get('admin_password', 'Subudhi123'),
             last_modified=last_modified,
-            modified_by=settings_data.get('modified_by', 'System')
+            modified_by=settings_data.get('modified_by', 'System'),
+            backup_directory=settings_data.get('backup_directory', ''),
+            backup_retention_count=settings_data.get('backup_retention_count', 5),
+            auto_backup_enabled=settings_data.get('auto_backup_enabled', True)
         )
         
         return cls(

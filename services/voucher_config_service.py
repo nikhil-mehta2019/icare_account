@@ -32,7 +32,7 @@ class TallyHead:
     gst_applicable: bool = True
     tds_section: str = ""
     is_domestic: Optional[bool] = None  # None means no restriction, True = domestic only, False = international only
-
+    is_b2b: Optional[bool] = None       # Explicit flag: True=B2B, False=B2C, None=Auto-detect
 
 @dataclass
 class DropdownOption:
@@ -206,7 +206,8 @@ class VoucherConfigService:
                     requires_franchise=h.get("needsFranchise", h.get("requiresFranchise", False)),
                     gst_applicable=h.get("gstApplicable", True),
                     tds_section=h.get("tdsSection", ""),
-                    is_domestic=h.get("isDomestic", None)
+                    is_domestic=h.get("isDomestic", None),
+                    is_b2b=h.get("isB2b", None)
                 )
                 for h in heads_data
             ]
@@ -220,7 +221,8 @@ class VoucherConfigService:
                     requires_franchise=h.get("requiresFranchise", False),
                     gst_applicable=h.get("gstApplicable", True),
                     tds_section=h.get("tdsSection", ""),
-                    is_domestic=h.get("isDomestic", None)
+                    is_domestic=h.get("isDomestic", None),
+                    is_b2b=h.get("isB2b", None)
                 )
                 for h in heads_data
             ]
@@ -626,6 +628,31 @@ class VoucherConfigService:
         for p in pos_list:
             p["isHomeState"] = (p.get("value") == state_code)
         return self.save_config()
+    
+    def classify_head(self, head: TallyHead) -> str:
+        """
+        Classifies an accounting head as B2B, B2C, or UNKNOWN based on strict priority.
+        """
+        # 1. Explicit config flag (Highest Priority)
+        if head.is_b2b is True:
+            return "B2B"
+        if head.is_b2b is False:
+            return "B2C"
+            
+        # 2. Configuration logic derivation
+        if head.requires_franchise:
+            return "B2B"
+            
+        # 3. Name-based heuristics
+        name_upper = head.name.upper()
+        if any(kw in name_upper for kw in ["B2B", "CORPORATE", "FRANCHISE"]):
+            return "B2B"
+            
+        if any(kw in name_upper for kw in ["B2C", "RETAIL"]):
+            return "B2C"
+            
+        # 4. Fallback (Prevents silent defaulting to B2C)
+        return "UNKNOWN"
 
 
 # ==========================================

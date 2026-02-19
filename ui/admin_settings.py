@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QGroupBox, QFrame, QMessageBox,
     QLineEdit, QCheckBox, QTableWidget, QTabWidget,
     QTableWidgetItem, QHeaderView, QScrollArea, QFileDialog,
-    QDoubleSpinBox, QComboBox, QFormLayout, QDialog, QDialogButtonBox
+    QDoubleSpinBox, QComboBox, QFormLayout, QDialog, QDialogButtonBox,
+    QSpinBox
 )
 from PySide6.QtCore import Qt, Signal
 from datetime import datetime
@@ -345,6 +346,10 @@ class AdminSettingsTab(QWidget):
         # Tab 7: Vendors
         vendors_tab = self._create_vendors_tab()
         tabs.addTab(vendors_tab, "Vendors")
+
+        # Tab 8: Backup Settings
+        backup_tab = self._create_backup_tab()
+        tabs.addTab(backup_tab, "Backup Config")
         
         return tabs
     
@@ -1294,3 +1299,140 @@ class AdminSettingsTab(QWidget):
             self.vendors_table.setItem(row, 2, QTableWidgetItem(v.get("contact_person", "")))
             self.vendors_table.setItem(row, 3, QTableWidgetItem("Yes" if v.get("isActive") else "No"))
             self.vendors_table.item(row, 0).setData(Qt.UserRole, v)
+
+    
+    def _create_backup_tab(self) -> QWidget:
+        """Create the Backup Settings management tab."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(15)
+        layout.setContentsMargins(15, 15, 15, 15)
+        
+        info = QLabel("Configure automatic backups. The system creates a ZIP backup after every successful voucher save or bulk import.")
+        info.setStyleSheet(Styles.get_helper_text_style())
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        master = self.data_service.get_master_data()
+        
+        # 1. Enable Checkbox
+        self.backup_enable_chk = QCheckBox("Enable Automatic Backups")
+        self.backup_enable_chk.setChecked(getattr(master.settings, 'auto_backup_enabled', True))
+        self.backup_enable_chk.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {Styles.PRIMARY};")
+        layout.addWidget(self.backup_enable_chk)
+        
+        # 2. Directory Selector (WITH BROWSE BUTTON)
+        dir_group = QGroupBox("Backup Location")
+        dir_layout = QHBoxLayout(dir_group)
+        dir_layout.setContentsMargins(10, 10, 10, 10)
+        dir_layout.setSpacing(10)
+        
+        self.backup_dir_input = QLineEdit()
+        self.backup_dir_input.setPlaceholderText("Default: [Local App Data]/iCareAccount/backups")
+        self.backup_dir_input.setText(getattr(master.settings, 'backup_directory', ''))
+        self.backup_dir_input.setReadOnly(True)
+        self.backup_dir_input.setMinimumHeight(32)
+        dir_layout.addWidget(self.backup_dir_input)
+        
+        # ---> THE BROWSE PATH BUTTON <---
+        browse_btn = QPushButton("Browse Path")
+        browse_btn.setMinimumHeight(32)
+        browse_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.SECONDARY};
+                color: white;
+                border-radius: 4px;
+                padding: 0 15px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: {Styles.SECONDARY_LIGHT}; }}
+        """)
+        browse_btn.clicked.connect(self._browse_backup_dir)
+        dir_layout.addWidget(browse_btn)
+        
+        clear_dir_btn = QPushButton("Use Default")
+        clear_dir_btn.setMinimumHeight(32)
+        clear_dir_btn.clicked.connect(lambda: self.backup_dir_input.clear())
+        dir_layout.addWidget(clear_dir_btn)
+        
+        layout.addWidget(dir_group)
+        
+        # 3. Retention Settings (Days based)
+        retention_row = QHBoxLayout()
+        retention_label = QLabel("Keep backups for last N days:")
+        retention_label.setStyleSheet("font-weight: 600;")
+        
+        self.backup_retention_spin = QSpinBox()
+        self.backup_retention_spin.setRange(1, 365)
+        self.backup_retention_spin.setValue(getattr(master.settings, 'backup_retention_days', 5))
+        self.backup_retention_spin.setMinimumHeight(30)
+        
+        retention_row.addWidget(retention_label)
+        retention_row.addWidget(self.backup_retention_spin)
+        retention_row.addStretch()
+        layout.addLayout(retention_row)
+        
+        # 4. Save Action
+        save_row = QHBoxLayout()
+        save_btn = QPushButton("Save Backup Configuration")
+        save_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.SUCCESS};
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: #43A047; }}
+        """)
+        save_btn.clicked.connect(self._save_backup_settings)
+        save_row.addStretch()
+        save_row.addWidget(save_btn)
+        layout.addLayout(save_row)
+        
+        layout.addStretch()
+        return widget
+    
+    def _browse_backup_dir(self):
+        """Open a strict folder selection dialog."""
+        options = QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        dir_path = QFileDialog.getExistingDirectory(
+            self, 
+            "Select Backup Directory", 
+            "", 
+            options=options
+        )
+        
+        if dir_path:
+            import os
+            self.backup_dir_input.setText(os.path.normpath(dir_path))
+            
+    def _save_backup_settings(self):
+        """Save the backup configuration to Master Data."""
+        b_dir = self.backup_dir_input.text().strip()
+        
+        # Validate Directory if provided
+        if b_dir:
+            import os
+            if not os.path.exists(b_dir):
+                try:
+                    os.makedirs(b_dir, exist_ok=True)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Cannot create target directory:\n{e}")
+                    return
+            if not os.access(b_dir, os.W_OK):
+                QMessageBox.warning(self, "Permission Denied", "Selected directory is not writable.")
+                return
+
+        try:
+            master = self.data_service.get_master_data()
+            master.settings.auto_backup_enabled = self.backup_enable_chk.isChecked()
+            master.settings.backup_directory = b_dir
+            master.settings.backup_retention_days = self.backup_retention_spin.value()
+            self.data_service.save_master_data()
+            
+            QMessageBox.information(self, "Success", "Backup configuration updated and applied successfully!")
+            self.settings_changed.emit()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save settings:\n{e}")

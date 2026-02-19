@@ -414,7 +414,7 @@ class BulkImportTab(QWidget):
             QMessageBox.warning(self, "No Data", "No valid data to import.")
             return
 
-        total_amt = sum(v.amount for v in self._vouchers)
+        total_amt = sum(getattr(v, 'amount', getattr(v, 'total_debit', 0.0)) for v in self._vouchers)
         
         reply = QMessageBox.question(
             self,

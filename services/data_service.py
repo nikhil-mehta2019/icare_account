@@ -14,6 +14,8 @@ from models.debit_voucher import (
     JournalVoucher, PurchaseVoucher, PayrollVoucher, 
     DebitVoucherType, GSTConfig, TDSConfig
 )
+from services.backup_service import BackupService
+
 def get_persistent_path(filename):
     # This path remains the same even if the .exe folder is replaced
     app_data = Path(os.getenv('LOCALAPPDATA')) / "iCareAccount"
@@ -146,15 +148,21 @@ class DataService:
         return self.load_vouchers()
     
     def add_voucher(self, voucher: Any) -> None:
+        self._validate_voucher_classification(voucher, is_bulk=False)
         self.load_vouchers()
         self._vouchers.append(voucher)
         self.save_vouchers()
+        self._trigger_auto_backup()
     
     def add_vouchers_bulk(self, vouchers: List[Any]) -> None:
+        if vouchers:
+            for v in vouchers:
+                self._validate_voucher_classification(v, is_bulk=True)
         self.load_vouchers()
         # Accept the list as-is (Objects or Dicts), save_vouchers handles the rest
         self._vouchers.extend(vouchers)
         self.save_vouchers()
+        self._trigger_auto_backup()
     
     def update_voucher(self, voucher: Any) -> bool:
         self.load_vouchers()
@@ -327,3 +335,67 @@ class DataService:
         
         next_seq = max_seq + 1
         return f"{prefix}-{next_seq:04d}"
+    
+    def _trigger_auto_backup(self) -> None:
+        """Safely trigger an asynchronous backup if enabled."""
+        try:
+            master = self.get_master_data()
+            if getattr(master.settings, 'auto_backup_enabled', True):
+                BackupService.trigger_backup(
+                    data_dir=str(self.data_dir),
+                    backup_dir=getattr(master.settings, 'backup_directory', ''),
+                    retention_count=getattr(master.settings, 'backup_retention_count', 30)
+                )
+        except Exception as e:
+            # Silently fail so it NEVER affects voucher generation
+            print(f"Warning: Failed to initiate auto-backup thread: {e}")
+
+    def _validate_voucher_classification(self, voucher: Any, is_bulk: bool) -> None:
+        """Strict enforcement: B2B via manual only, B2C via bulk only."""
+        try:
+            # 1. Standardize the voucher object
+            v_obj = voucher if not isinstance(voucher, dict) else self._dict_to_voucher(voucher)
+            
+            # 2. Check Voucher Type (Strictly skip non-credit)
+            v_type = getattr(v_obj, 'voucher_type', '')
+            if hasattr(v_type, 'value'): v_type = v_type.value
+            if str(v_type).upper() != "CREDIT":
+                return 
+                
+            # 3. Get Account Code (Mandatory for Credit Vouchers)
+            head_code = getattr(v_obj, 'account_code', '')
+            if not head_code and isinstance(voucher, dict):
+                head_code = voucher.get('account_code', '')
+                
+            if not head_code:
+                # If it's a credit voucher and has no code, it's invalid data
+                raise ValueError("Credit Voucher is missing an Account Code.")
+                
+            # 4. Resolve Classification
+            from services.voucher_config_service import get_voucher_config
+            config = get_voucher_config()
+            head = config.get_tally_head_by_code(head_code, "credit")
+            
+            if not head:
+                raise ValueError(f"Account Code '{head_code}' not found in Configuration.")
+                
+            classification = config.classify_head(head)
+            
+            # 5. HARD ENFORCEMENT (No early returns allowed here)
+            if classification == "B2C":
+                if not is_bulk:
+                    raise ValueError("B2C transactions must be imported through Bulk Import.")
+            
+            elif classification == "B2B":
+                if is_bulk:
+                    raise ValueError("B2B transactions must be entered through Manual Entry.")
+            
+            else: # Handle UNKNOWN or misconfigured heads
+                raise ValueError(f"Account '{head_code}' has invalid classification ({classification}).")
+
+        except Exception as e:
+            # Re-raise ValueErrors so they stop the save flow in add_voucher()
+            if isinstance(e, ValueError):
+                raise e
+            # Log and block for any other unexpected system errors to be safe
+            raise ValueError(f"Data Safety Block: Classification check failed - {str(e)}")

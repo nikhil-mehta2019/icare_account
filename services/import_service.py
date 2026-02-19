@@ -9,7 +9,7 @@ from pathlib import Path
 from models.voucher import Voucher, VoucherStatus
 from models.account_head import VoucherType
 from models.import_result import ImportResult, ImportStatus, ImportError
-
+from services.voucher_config_service import get_voucher_config
 
 class ImportService:
     """
@@ -179,6 +179,24 @@ class ImportService:
             result.add_error(0, 'VALIDATION_ERROR', f"Missing required columns: {', '.join(missing)}")
             self._current_import = result
             return result
+
+        try:
+            config = get_voucher_config()
+            head = config.get_tally_head_by_code(global_data.get('income_head_code', ''), "credit")
+            if head:
+                classification = config.classify_head(head)
+                if classification == "B2B":
+                    result.status = ImportStatus.FAILED
+                    result.add_error(0, 'RULE_VIOLATION', "Strict Enforcement: B2B transactions must be entered through manual entry.")
+                    self._current_import = result
+                    return result
+                elif classification == "UNKNOWN":
+                    result.status = ImportStatus.FAILED
+                    result.add_error(0, 'RULE_VIOLATION', "Unable to determine transaction type from accounting head. Please check configuration.")
+                    self._current_import = result
+                    return result
+        except Exception as e:
+            pass # Fallback to normal execution if config service is somehow unavailable
 
         try:
             from_date = global_data['from_date']

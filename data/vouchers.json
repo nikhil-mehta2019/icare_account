@@ -659,7 +659,97 @@
       "cgst_amount": 0.0,
       "sgst_amount": 0.0,
       "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "PAYROLL-FEB2026",
+      "voucher_no": "PAYROLL-FEB2026",
+      "voucher_date": "2026-02-19",
+      "narration": "testing",
+      "status": "Imported",
+      "voucher_type": "Journal",
+      "entries": [
+        {
+          "ledger": "Salary & Wages",
+          "debit_amount": 578750.0,
+          "credit_amount": 0.0,
+          "subcode": "Placement"
+        },
+        {
+          "ledger": "Salary & Wages",
+          "debit_amount": 1120000.0,
+          "credit_amount": 0.0,
+          "subcode": "Corporate"
+        },
+        {
+          "ledger": "Employee Share of PF Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 180000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employer Share of PF Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 180000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employee Share of ESIC Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 3750.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Employer Share of ESIC Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 18750.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Professional Tax Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 7000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "TDS on Salary Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 100000.0,
+          "subcode": ""
+        },
+        {
+          "ledger": "Salary Payable",
+          "debit_amount": 0.0,
+          "credit_amount": 1209250.0,
+          "subcode": ""
+        }
+      ],
+      "amount": 1698750.0,
+      "party_ledger": "Multiple (Journal)"
+    },
+    {
+      "voucher_id": "915f8f3e-1634-4b54-96af-32fd0dd44f38",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "1A2",
+      "account_name": "1A2 - Direct Operating Income B2C - International",
+      "amount": 0,
+      "segment": "",
+      "narration": "",
+      "reference_id": "CR-SAL-2025-26-0001",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T15:32:26.103367",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null,
+      "voucher_no": "CR-SAL-2025-26-0001",
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     }
   ],
-  "last_modified": "2026-02-19T12:50:51.275119"
+  "last_modified": "2026-02-19T15:32:26.103367"
 }

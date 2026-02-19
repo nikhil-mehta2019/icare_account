@@ -787,6 +787,9 @@
     "is_frozen": true,
     "admin_password": "Subudhi123",
     "last_modified": "2026-01-07T11:18:27.377191",
-    "modified_by": "System"
+    "modified_by": "System",
+    "backup_directory": "D:\\Icare\\ACCOUNTING\\backup",
+    "backup_retention_count": 5,
+    "auto_backup_enabled": true
   }
 }

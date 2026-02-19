@@ -744,7 +744,7 @@ class VoucherEntryTab(QWidget):
         enter_row.addWidget(self.amount_label)
 
         self.amount_input = QDoubleSpinBox()
-        self.amount_input.setRange(1, 99999999.99)
+        self.amount_input.setRange(0, 99999999.99)
         self.amount_input.setDecimals(2)
         self.amount_input.setPrefix("₹ ")
         self.amount_input.setGroupSeparatorShown(True)
@@ -1557,10 +1557,32 @@ class VoucherEntryTab(QWidget):
     def _validate_step1(self) -> bool:
         if not self.tally_head_combo.currentData():
             return False
+        
+        # Validation for Credit Vouchers (Manual Entry)
+        if self._voucher_type == "credit":
+            head_text = self.tally_head_combo.currentText()
+            # 1A2 is the hardcoded B2C identifier in your detection logic
+            if "1A2" in head_text or "B2C" in head_text.upper():
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.critical(
+                    self, "Entry Restricted", 
+                    "B2C transactions (1A2) are restricted to Bulk Import only."
+                )
+                return False # Blocks the 'Next' button
+                
         return True
     
     def _validate_step2(self) -> bool:
-        if not self.pos_combo.currentData(): return False
+        # === STRICT ENFORCEMENT: Franchise ===
+        if self.franchise_combo.isEnabled() and not self.franchise_combo.currentData():
+            QMessageBox.warning(self, "Validation Error", "Franchise selection is strictly required for this B2B Accounting Head.")
+            self.franchise_combo.setFocus()
+            return False
+            
+        if not self.pos_combo.currentData():
+            QMessageBox.warning(self, "Validation Error", "Please select a Point of Supply (State).")
+            return False
+            
         return True
     
     def _validate_step3(self) -> bool:
@@ -1592,6 +1614,12 @@ class VoucherEntryTab(QWidget):
                      "New vendors cannot be added here.\nPlease add them via 'Admin Settings > Vendor Master'."
                  )
                  return False
+             
+        narration = self.narration_edit.toPlainText().strip()
+        if not narration:
+            QMessageBox.warning(self, "Validation Error", "Narration / Description is strictly required.\nPlease type manually or click 'Auto-Generate Narration'.")
+            self.narration_edit.setFocus()
+            return False
 
         return True
     
