@@ -18,7 +18,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "75f54a06-db09-4370-acc1-b221df48a830",
@@ -38,7 +42,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "1ef65adb-7291-45a9-b6f0-e309f0da2cc6",
@@ -58,7 +66,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "48f2ba69-e13b-4981-bbf2-bc808e3ce60b",
@@ -78,7 +90,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "eb8d3d74-e433-4b63-a648-e98d89858bab",
@@ -98,7 +114,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "PAYROLL-FEB2026",
@@ -184,7 +204,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "6add98b3-d29f-404e-968b-b8a02c537072",
@@ -204,7 +228,11 @@
       "invoice_no": "1564",
       "invoice_date": "2026-02-05",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "b4f13444-6781-4952-93bb-08c21115e9f3",
@@ -224,7 +252,11 @@
       "invoice_no": null,
       "invoice_date": null,
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "45e1405a-97a6-4ca5-9a0c-0a8492f3fac2",
@@ -244,7 +276,11 @@
       "invoice_no": "12542",
       "invoice_date": "2026-02-10",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "61881696-bead-4fce-bd33-40831e1075a4",
@@ -264,7 +300,11 @@
       "invoice_no": "57924",
       "invoice_date": "2026-02-10",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "afa8e8ef-1ee6-4997-b9b7-0c6bd294586d",
@@ -284,7 +324,11 @@
       "invoice_no": "123213",
       "invoice_date": "2026-02-10",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "4eac9a20-40f7-45ac-b8ab-e007eaefe239",
@@ -304,7 +348,11 @@
       "invoice_no": "12323",
       "invoice_date": "2026-02-10",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "PAYROLL-FEB2026",
@@ -390,7 +438,11 @@
       "invoice_no": "sdas22",
       "invoice_date": "2026-02-11",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     },
     {
       "voucher_id": "3f919518-82e9-49b8-8d41-50ca3e1d3cef",
@@ -410,8 +462,204 @@
       "invoice_no": "14528",
       "invoice_date": "2026-02-11",
       "from_date": null,
-      "to_date": null
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "2912f8e7-38b3-4649-9d5b-3fbe5174ee8d",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "1A5",
+      "account_name": "1A5 - Franchisee Partnership Income B2B",
+      "amount": 1180.0,
+      "segment": "",
+      "narration": "",
+      "reference_id": "CR-SAL-202602-0001",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T10:45:34.925225",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": null,
+      "to_date": null,
+      "voucher_no": "CR-SAL-202602-0001",
+      "cgst_amount": 90.0,
+      "sgst_amount": 90.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "07d2cb59-a3eb-4c5b-bbba-62da5a85f21b",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Debit",
+      "account_code": "2B4",
+      "account_name": "2B4 - IT & Software Expenses",
+      "amount": 1392.4,
+      "segment": "",
+      "narration": "test from Life Uno for period 21-Dec-2025 to 19-Feb-2026",
+      "reference_id": "DB-000-202602-0008",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T10:46:23.770902",
+      "created_by": "System",
+      "source": "Manual",
+      "party_name": "Life Uno",
+      "invoice_no": "145sda",
+      "invoice_date": "2026-02-19",
+      "from_date": null,
+      "to_date": null,
+      "voucher_no": null,
+      "cgst_amount": 106.2,
+      "sgst_amount": 106.2,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "721f006b-60ff-4ecf-b8b5-18e29374482d",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 1180.0,
+      "segment": "Retail",
+      "narration": "Domestic B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0002",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:46:44.462019",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0002",
+      "cgst_amount": 90.0,
+      "sgst_amount": 90.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "161f6385-c662-4936-89a1-2f663cf066d7",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 1000.0,
+      "segment": "Retail",
+      "narration": "International B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0002",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:46:44.462019",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0002",
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "55635a36-c86f-4106-9fbf-b37c43b01aaf",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 500.0,
+      "segment": "Retail",
+      "narration": "International B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0002",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:46:44.462019",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0002",
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "96a40eb7-69af-48f7-9471-a6bcf73490ba",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 1180.0,
+      "segment": "Retail",
+      "narration": "Domestic B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0003",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:50:51.275119",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0003",
+      "cgst_amount": 90.0,
+      "sgst_amount": 90.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "104e58e0-5bc2-417d-a34f-4f87ada1eb2b",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 1000.0,
+      "segment": "Retail",
+      "narration": "International B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0004",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:50:51.275119",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0004",
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
+    },
+    {
+      "voucher_id": "a5ede274-40cd-4330-93e5-d75461be4c8b",
+      "date": "2026-02-19T00:00:00",
+      "voucher_type": "Credit",
+      "account_code": "4001",
+      "account_name": "Sales Account",
+      "amount": 500.0,
+      "segment": "Retail",
+      "narration": "International B2C Billing, for the period 01-Feb-2026 to 28-Feb-2026",
+      "reference_id": "CR-SAL-202602-0005",
+      "status": "Pending Review",
+      "created_at": "2026-02-19T12:50:51.275119",
+      "created_by": "System",
+      "source": "B2C Bulk Import",
+      "party_name": null,
+      "invoice_no": null,
+      "invoice_date": null,
+      "from_date": "2026-02-01",
+      "to_date": "2026-02-28",
+      "voucher_no": "CR-SAL-202602-0005",
+      "cgst_amount": 0.0,
+      "sgst_amount": 0.0,
+      "igst_amount": 0.0
     }
   ],
-  "last_modified": "2026-02-11T13:47:26.163522"
+  "last_modified": "2026-02-19T12:50:51.275119"
 }

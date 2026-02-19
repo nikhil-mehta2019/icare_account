@@ -7,6 +7,7 @@ from typing import List, Optional, Any
 from pathlib import Path
 
 # Import models
+from models.financial_year import FinancialYear
 from models.voucher import Voucher, VoucherStatus
 from models.master_data import MasterData
 from models.debit_voucher import (
@@ -199,7 +200,7 @@ class DataService:
             if not d: continue
             
             if isinstance(d, str):
-                try: d = datetime.strptime(d, "%Y-%m-%d")
+                try: d = datetime.strptime(d.split('T')[0], "%Y-%m-%d")
                 except: continue
             
             # Compare datetime/date
@@ -223,14 +224,17 @@ class DataService:
         self._vouchers = []
         self.save_vouchers()
 
-    def get_next_sequence(self, voucher_type: str) -> int:
+    def get_next_sequence(self, voucher_type: str, date_obj: Optional[datetime] = None) -> int:
         """
-        Calculate next sequence number for the given voucher type in the current month.
+        Calculate next sequence number for the given voucher type within the Financial Year.
         Separates 'Debit' and 'Credit' sequences.
         """
         self.load_vouchers()
-        current_month_str = datetime.now().strftime("%Y%m")
         
+        if date_obj is None:
+            date_obj = datetime.now()
+            
+        target_fy = FinancialYear.from_date(date_obj)
         max_seq = 0
         
         # Normalize type string
@@ -249,7 +253,19 @@ class DataService:
             if str(v_type_val).lower() != target_type:
                 continue
 
-            # 2. Get the Code (reference_id)
+            # 2. Match Financial Year using the Voucher Date
+            v_date = getattr(v, 'voucher_date', getattr(v, 'date', None))
+            if isinstance(v, dict):
+                v_date = v.get('voucher_date') or v.get('date')
+                
+            if not v_date:
+                continue
+                
+            v_fy = FinancialYear.from_date(v_date)
+            if v_fy.code != target_fy.code:
+                continue
+
+            # 3. Get the Code (reference_id)
             code = getattr(v, 'reference_id', '')
             if isinstance(v, dict):
                 code = v.get('reference_id', '')
@@ -257,17 +273,57 @@ class DataService:
             if not code:
                 continue
 
-            # 3. Parse Code: [Type]-[Product]-[YYYYMM]-[Seq]
-            # Example: DB-MSC-202602-0045
+            # 4. Parse Code: [Type]-[Product]-[YYYY-YY]-[Seq]
             parts = code.split('-')
+            try:
+                seq = int(parts[-1])
+                if seq > max_seq:
+                    max_seq = seq
+            except ValueError:
+                continue
+        
+        return max_seq + 1
+    
+    def generate_credit_sale_code(self, date_obj: datetime) -> str:
+        """
+        Generate a unique, sequential voucher code for Credit Sales.
+        Format: CR-SAL-YYYY-YY-XXXX
+        Logic: Independent sequence based on Financial Year pattern.
+        """
+        self.load_vouchers()
+        
+        # 1. Determine Period Prefix
+        fy = FinancialYear.from_date(date_obj)
+        prefix = f"CR-SAL-{fy.code}"
+        
+        max_seq = 0
+        
+        for v in self._vouchers:
+            # 1. Safety Check: Handle Dict vs Object
+            v_obj = v if not isinstance(v, dict) else self._dict_to_voucher(v)
             
-            # Ensure it matches current month pattern
-            if len(parts) >= 4 and parts[-2] == current_month_str:
+            # 2. Filter for Credit Vouchers Only
+            # Check voucher_type enum or string safely
+            v_type = getattr(v_obj, 'voucher_type', '')
+            if hasattr(v_type, 'value'): v_type = v_type.value
+            
+            if str(v_type).upper() != "CREDIT":
+                continue
+                
+            # 3. Check Code Pattern
+            # We check both 'voucher_no' (new) and 'reference_id' (legacy/fallback)
+            code = getattr(v_obj, 'voucher_no', '') or getattr(v_obj, 'reference_id', '')
+            
+            if code and code.startswith(prefix):
                 try:
-                    seq = int(parts[-1])
-                    if seq > max_seq:
-                        max_seq = seq
+                    # Extract numeric part: CR-SAL-2024-25-0001 -> 0001
+                    parts = code.split('-')
+                    if len(parts) > 0:
+                        seq = int(parts[-1])
+                        if seq > max_seq:
+                            max_seq = seq
                 except ValueError:
                     continue
         
-        return max_seq + 1
+        next_seq = max_seq + 1
+        return f"{prefix}-{next_seq:04d}"

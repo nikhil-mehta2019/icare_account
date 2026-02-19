@@ -43,6 +43,15 @@ class Voucher:
     # Period dates
     from_date: Optional[date_type] = None
     to_date: Optional[date_type] = None
+
+    # === NEW FIELDS (Credit Sales Support) ===
+    # Explicit sequential number (e.g., CR-SAL-202602-0001)
+    voucher_no: Optional[str] = None 
+    
+    # GST Breakdown (Credit Sales Only)
+    cgst_amount: float = 0.0
+    sgst_amount: float = 0.0
+    igst_amount: float = 0.0
     
     def __post_init__(self):
         """Validate voucher data after initialization."""
@@ -100,7 +109,14 @@ class Voucher:
             # ==================
             
             'from_date': self.from_date.isoformat() if self.from_date else None,
-            'to_date': self.to_date.isoformat() if self.to_date else None
+            'to_date': self.to_date.isoformat() if self.to_date else None,
+
+            # === NEW FIELDS SERIALIZATION ===
+            'voucher_no': self.voucher_no,
+            'cgst_amount': self.cgst_amount,
+            'sgst_amount': self.sgst_amount,
+            'igst_amount': self.igst_amount
+            # ================================
         }
     
     @classmethod
@@ -166,5 +182,12 @@ class Voucher:
             invoice_date=parse_date(data.get('invoice_date')),
             
             from_date=parse_date(data.get('from_date')),
-            to_date=parse_date(data.get('to_date'))
+            to_date=parse_date(data.get('to_date')),
+
+            # === NEW FIELDS DESERIALIZATION (With Safe Defaults) ===
+            voucher_no=data.get('voucher_no'),
+            cgst_amount=float(data.get('cgst_amount', 0.0)),
+            sgst_amount=float(data.get('sgst_amount', 0.0)),
+            igst_amount=float(data.get('igst_amount', 0.0))
+            # =======================================================
         )

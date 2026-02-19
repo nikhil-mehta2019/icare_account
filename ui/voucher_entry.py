@@ -879,7 +879,7 @@ class VoucherEntryTab(QWidget):
         auto_btn_layout.addWidget(self.auto_narration_btn)
         auto_btn_layout.addStretch()
 
-        self.auto_narration_row.setVisible(False)
+        self.auto_narration_row.setVisible(True)
         narr_layout.addWidget(self.auto_narration_row)
 
         self.narration_edit = QTextEdit()
@@ -1289,7 +1289,7 @@ class VoucherEntryTab(QWidget):
             self.vendor_group.setVisible(False)
             
             if hasattr(self, 'auto_narration_row'):
-                self.auto_narration_row.setVisible(False)
+                self.auto_narration_row.setVisible(True)
             
             self.amount_label.setText("Amount (₹) *:")
             self._gst_is_additive = False 
@@ -1449,26 +1449,44 @@ class VoucherEntryTab(QWidget):
         gst_applicable = self.gst_app_combo.currentData() == "Y"
         gst_rate = self.gst_rate_combo.currentData() or 0
         
+        # Initialize split variables
+        cgst_amt = 0.0
+        sgst_amt = 0.0
+        igst_amt = 0.0
+
+        # === 1. Calculate Base & Total GST ===
         if self._voucher_type == "credit":
             # CREDIT: Amount is TOTAL (inclusive)
             if gst_applicable and gst_rate > 0:
                 base_amount = input_amount / (1 + gst_rate / 100)
-                gst_amount = input_amount - base_amount
+                gst_total = input_amount - base_amount
             else:
                 base_amount = input_amount
-                gst_amount = 0
+                gst_total = 0
             gross = input_amount
             
         else:  # DEBIT
             # DEBIT: Amount is BASE (excl. GST)
             base_amount = input_amount
             if gst_applicable and gst_rate > 0:
-                gst_amount = base_amount * (gst_rate / 100)
-                gross = base_amount + gst_amount
+                gst_total = base_amount * (gst_rate / 100)
+                gross = base_amount + gst_total
             else:
-                gst_amount = 0
+                gst_total = 0
                 gross = base_amount
-        
+
+        # === 2. Calculate Split (CGST/SGST vs IGST) ===
+        if gst_applicable and gst_total > 0:
+            pos_code = self.pos_combo.currentData()
+            gst_type = self.config.determine_gst_type(pos_code) if pos_code else "CGST_SGST"
+            
+            if gst_type == "CGST_SGST":
+                cgst_amt = gst_total / 2
+                sgst_amt = gst_total / 2
+            else:
+                igst_amt = gst_total
+
+        # === 3. Calculate TDS (Debit Only) ===
         tds_amount = 0
         if self._voucher_type == "debit" and self.tds_app_combo.currentData() == "Y":
             tds_rate = self.tds_rate_spin.value()
@@ -1480,20 +1498,24 @@ class VoucherEntryTab(QWidget):
         else:
             net_payable = gross - tds_amount
         
-        # Update display
+        # === 4. Update UI Labels (FIXED FOR SPLIT DISPLAY) ===
         self.gross_display.setText(f"₹ {gross:,.2f}")
         self.taxable_label.setText(f"{'Base' if self._voucher_type=='debit' else 'Taxable'} Amount: ₹{base_amount:,.2f}")
         
-        if gst_applicable and gst_amount > 0:
-            self.gst_amount_label.setText(f"GST: ₹{gst_amount:,.2f}")
+        # Display the explicit split in the Step 3 Breakup box
+        if gst_applicable and gst_total > 0:
+            if igst_amt > 0:
+                self.gst_amount_label.setText(f"+ IGST: ₹{igst_amt:,.2f}")
+            else:
+                self.gst_amount_label.setText(f"+ CGST: ₹{cgst_amt:,.2f}   |   + SGST: ₹{sgst_amt:,.2f}")
         else:
-            self.gst_amount_label.setText("GST: ₹0.00")
+            self.gst_amount_label.setText("+ GST: ₹0.00")
         
         if self._voucher_type == "debit":
             self.tds_amount_label.setVisible(True)
             self.tds_amount_label.setText(f"- TDS/WHT: ₹{tds_amount:,.2f}")
             if is_rcm and gst_applicable:
-                self._update_rcm_journal_preview(base_amount, gst_amount, tds_amount, net_payable)
+                self._update_rcm_journal_preview(base_amount, gst_total, tds_amount, net_payable)
             else:
                 self.rcm_journal_frame.setVisible(False)
         else:
@@ -1502,10 +1524,17 @@ class VoucherEntryTab(QWidget):
         
         self.net_amount_label.setText(f"Net Payable: ₹{net_payable:,.2f}")
         
+        # === 5. Save Data (Including SPLIT) ===
         self._step_data.update({
-            'taxable': base_amount, 'gst_amount': gst_amount,
-            'tds_amount': tds_amount, 'net_payable': net_payable,
-            'gross_amount': gross, 'is_rcm': is_rcm
+            'taxable': base_amount, 
+            'gst_amount': gst_total,
+            'cgst_amount': cgst_amt,
+            'sgst_amount': sgst_amt,
+            'igst_amount': igst_amt,
+            'tds_amount': tds_amount, 
+            'net_payable': net_payable,
+            'gross_amount': gross, 
+            'is_rcm': is_rcm
         })
     
     def _update_rcm_journal_preview(self, base: float, gst: float, tds: float, net: float):
@@ -1572,6 +1601,21 @@ class VoucherEntryTab(QWidget):
         from_str = self.from_date.date().toString("dd-MMM-yyyy")
         to_str = self.to_date.date().toString("dd-MMM-yyyy")
         period_str = f"for period {from_str} to {to_str}"
+
+        # === NEW: Credit Voucher Logic ===
+        if self._voucher_type == "credit":
+            # Format: (Free text), (for the period) billed to (Name of Franchisee)
+            free_text = self.narration_edit.toPlainText().split(',')[0] if self.narration_edit.toPlainText() else "Billing"
+            franchise = self._step_data.get('franchise_name', 'Franchisee')
+            
+            # If franchise name is missing from step data (e.g. step skipped back), try combo
+            if not franchise and self.franchise_combo.isEnabled():
+                 franchise = self.franchise_combo.currentText().split(' - ')[-1]
+            
+            narration = f"{free_text}, {period_str} billed to {franchise}"
+            self.narration_edit.setText(narration)
+            return
+        # =================================
         
         # Get Invoice Info
         inv_no = self.invoice_no_input.text().strip()
@@ -1630,6 +1674,13 @@ class VoucherEntryTab(QWidget):
         self._step_data['voucher_code'] = self.voucher_code_display.text()
         self._step_data['gst_applicable'] = self.gst_app_combo.currentData() == "Y"
         self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
+        
+        # === NEW: Capture Franchise Name ===
+        if self.franchise_combo.isEnabled() and self.franchise_combo.currentData():
+             # Extract name from "CODE - Name"
+             self._step_data['franchise_name'] = self.franchise_combo.currentText().split(' - ')[-1]
+        else:
+             self._step_data['franchise_name'] = ""
     
     def _save_step3_data(self):
         
@@ -1648,7 +1699,12 @@ class VoucherEntryTab(QWidget):
         
         # Get data
         taxable = self._step_data.get('taxable', 0.0)
-        gst = self._step_data.get('gst_amount', 0.0)
+        
+        # Retrieve Split Components
+        cgst = self._step_data.get('cgst_amount', 0.0)
+        sgst = self._step_data.get('sgst_amount', 0.0)
+        igst = self._step_data.get('igst_amount', 0.0)
+        
         tds = self._step_data.get('tds_amount', 0.0)
         net = self._step_data.get('net_payable', 0.0)
         gross = self._step_data.get('gross_amount', 0.0)
@@ -1664,10 +1720,17 @@ class VoucherEntryTab(QWidget):
              self._add_preview_row(head_name, f"₹{taxable:,.2f}", "", "Expense")
              total_dr += taxable
              
-             # 2. Dr Input GST (Only if NOT RCM)
-             if gst > 0 and not is_rcm:
-                 self._add_preview_row("Input GST", f"₹{gst:,.2f}", "", "GST")
-                 total_dr += gst
+             # 2. Dr Input GST (Split) - Only if NOT RCM
+             if not is_rcm:
+                 if cgst > 0:
+                     self._add_preview_row("Input CGST", f"₹{cgst:,.2f}", "", "GST")
+                     total_dr += cgst
+                 if sgst > 0:
+                     self._add_preview_row("Input SGST", f"₹{sgst:,.2f}", "", "GST")
+                     total_dr += sgst
+                 if igst > 0:
+                     self._add_preview_row("Input IGST", f"₹{igst:,.2f}", "", "GST")
+                     total_dr += igst
              
              # 3. Cr Vendor (Net Payable)
              vendor_display = self._step_data.get('vendor_name', 'Vendor / Party A/c')
@@ -1682,17 +1745,24 @@ class VoucherEntryTab(QWidget):
         # === CREDIT VOUCHER PREVIEW ===
         else: 
              # 1. Dr Party (Gross)
-             self._add_preview_row("Party / Customer A/c", f"₹{gross:,.2f}", "", "Party")
+             party_label = self._step_data.get('franchise_name') or "Party / Customer A/c"
+             self._add_preview_row(party_label, f"₹{gross:,.2f}", "", "Party")
              total_dr += gross
              
              # 2. Cr Income
              self._add_preview_row(head_name, "", f"₹{taxable:,.2f}", "Income")
              total_cr += taxable
              
-             # 3. Cr Output GST
-             if gst > 0:
-                 self._add_preview_row("Output GST", "", f"₹{gst:,.2f}", "GST")
-                 total_cr += gst
+             # 3. Cr Output GST (Split)
+             if cgst > 0:
+                 self._add_preview_row("Output CGST", "", f"₹{cgst:,.2f}", "GST")
+                 total_cr += cgst
+             if sgst > 0:
+                 self._add_preview_row("Output SGST", "", f"₹{sgst:,.2f}", "GST")
+                 total_cr += sgst
+             if igst > 0:
+                 self._add_preview_row("Output IGST", "", f"₹{igst:,.2f}", "GST")
+                 total_cr += igst
                  
         self.preview_narration.setText(f"Narration: {self._step_data.get('narration', '')}")
         
@@ -1722,10 +1792,17 @@ class VoucherEntryTab(QWidget):
             inv_no = self._step_data.get('invoice_no')
             inv_date = self._step_data.get('invoice_date')
             
+            generated_voucher_no = None
+            reference_id = self._step_data.get('voucher_code', '')
+            
             if self._voucher_type == "credit":
                 vendor = None
                 inv_no = None
                 inv_date = None
+                # Generate strict sequential ID
+                v_date_obj = datetime.combine(self._step_data['voucher_date'], datetime.min.time())
+                generated_voucher_no = self.data_service.generate_credit_sale_code(v_date_obj)
+                reference_id = generated_voucher_no # Use the sequential ID as the main reference
 
             v = Voucher(
                 date=datetime.combine(self._step_data['voucher_date'], datetime.min.time()),
@@ -1733,12 +1810,17 @@ class VoucherEntryTab(QWidget):
                 account_code=self._step_data.get('head_code'),
                 amount=self._step_data.get('gross_amount', 0),
                 narration=self._step_data.get('narration', ''),
-                reference_id=self._step_data.get('voucher_code', ''),
+                reference_id=reference_id, # Updated reference
                 status=VoucherStatus.PENDING_REVIEW,
                 
                 party_name=vendor,
                 invoice_no=inv_no,
-                invoice_date=inv_date
+                invoice_date=inv_date,
+
+                voucher_no=generated_voucher_no,
+                cgst_amount=self._step_data.get('cgst_amount', 0.0),
+                sgst_amount=self._step_data.get('sgst_amount', 0.0),
+                igst_amount=self._step_data.get('igst_amount', 0.0)
             )
             
             # === FIX FOR REVIEW TAB COMPATIBILITY ===
@@ -1754,16 +1836,17 @@ class VoucherEntryTab(QWidget):
                 v.expense_ledger = self._step_data.get('head_name')
                 v.supplier_ledger = self._step_data.get('vendor_name')
             else:
-                v.party_ledger = "Cash/Bank"
-                v.expense_ledger = self._step_data.get('head_name') # Income ledger
+                party = self._step_data.get('franchise_name') or "Cash/Bank"
+                v.party_ledger = party
+                v.expense_ledger = self._step_data.get('head_name')
 
             # Construct GST Object for Review Screen
             gst_amt = self._step_data.get('gst_amount', 0.0)
             if gst_amt > 0:
                 v.gst = SimpleNamespace()
-                v.gst.cgst_amount = gst_amt / 2 # simplified split
-                v.gst.sgst_amount = gst_amt / 2
-                v.gst.igst_amount = 0.0 
+                v.gst.cgst_amount = self._step_data.get('cgst_amount', 0.0)
+                v.gst.sgst_amount = self._step_data.get('sgst_amount', 0.0)
+                v.gst.igst_amount = self._step_data.get('igst_amount', 0.0)
                 # Note: Real app should check POS state here, but simplified is usually ok for view
             
             # Construct TDS Object for Review Screen

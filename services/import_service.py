@@ -120,6 +120,159 @@ class ImportService:
         
         self._current_import = result
         return result
+
+    def _is_international_location(self, loc: str) -> bool:
+        """
+        Helper to robustly determine if a location is International.
+        Checks against Indian states; if not matched, assumes International.
+        """
+        if not loc:
+            return False
+        loc = str(loc).lower().strip()
+        
+        # 1. Check for Domestic (Indian) States & Keywords
+        domestic_indicators = [
+            'india', 'andaman', 'andhra', 'arunachal', 'assam', 'bihar', 
+            'chandigarh', 'chhattisgarh', 'dadra', 'daman', 'delhi', 'goa', 
+            'gujarat', 'haryana', 'himachal', 'jammu', 'kashmir', 'jharkhand', 
+            'karnataka', 'kerala', 'ladakh', 'lakshadweep', 'madhya', 
+            'maharashtra', 'manipur', 'meghalaya', 'mizoram', 'nagaland', 
+            'odisha', 'puducherry', 'punjab', 'rajasthan', 'sikkim', 'tamil', 
+            'telangana', 'tripura', 'uttar', 'uttarakhand', 'bengal', 'pune', 'mumbai'
+        ]
+        
+        if any(state in loc for state in domestic_indicators):
+            return False
+            
+        # 2. Explicit International Keywords
+        international_keywords = [
+            'international', 'foreign', 'export', 'outside india', 
+            'row', 'global', 'overseas', 'usa', 'uk', 'london', 'america'
+        ]
+        
+        if any(kw in loc for kw in international_keywords):
+            return True
+            
+        # 3. Fallback: If it's not an Indian state, classify as International
+        return True
+
+    def parse_sales_csv(self, filepath: str, global_data: Dict) -> ImportResult:
+        result = ImportResult(
+            filename=os.path.basename(filepath),
+            import_type='B2C Sales Import',
+            status=ImportStatus.IN_PROGRESS
+        )
+        
+        required_globals = ['from_date', 'to_date', 'income_head_code', 'bank_head_name']
+        missing_globals = [g for g in required_globals if not global_data.get(g)]
+        if missing_globals:
+            result.status = ImportStatus.FAILED
+            result.add_error(0, 'MISSING_GLOBALS', f"Missing required global fields: {', '.join(missing_globals)}")
+            self._current_import = result
+            return result
+
+        required_columns = ['Business Segment', 'Product Code', 'Location', 'Amount', 'SGST', 'CGST', 'IGST']
+        is_valid, missing = self.validate_csv_structure(filepath, required_columns)
+        
+        if not is_valid:
+            result.status = ImportStatus.FAILED
+            result.add_error(0, 'VALIDATION_ERROR', f"Missing required columns: {', '.join(missing)}")
+            self._current_import = result
+            return result
+
+        try:
+            from_date = global_data['from_date']
+            to_date = global_data['to_date']
+            income_head_code = global_data['income_head_code']
+            income_head_name = global_data.get('income_head_name', 'Operating Income')
+            bank_head_name = global_data['bank_head_name']
+
+            fd = from_date.strftime('%d-%b-%Y') if hasattr(from_date, 'strftime') else str(from_date)
+            td = to_date.strftime('%d-%b-%Y') if hasattr(to_date, 'strftime') else str(to_date)
+            period_str = f"for the period {fd} to {td}"
+
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                result.column_headers = reader.fieldnames or []
+                
+                b2b_column_names = [col for col in result.column_headers if col.lower() in ['gstin', 'franchisee', 'b2b', 'customer gstin', 'party code']]
+                
+                result.total_rows = 0
+
+                for row_num, row in enumerate(reader, start=2):
+                    result.total_rows += 1
+                    try:
+                        is_b2b = any(str(row.get(col, '')).strip() for col in b2b_column_names)
+                        if is_b2b:
+                            result.add_error(row_num, 'B2C_ONLY_ERROR', "B2B identifiers (GSTIN/Franchisee) found. Bulk import is strictly for B2C.", raw_data=row)
+                            continue
+
+                        amount = float(row.get('Amount', 0) or 0)
+                        sgst = float(row.get('SGST', 0) or 0)
+                        cgst = float(row.get('CGST', 0) or 0)
+                        igst = float(row.get('IGST', 0) or 0)
+
+                        if amount <= 0:
+                            result.skipped_rows += 1
+                            continue
+
+                        is_international = self._is_international_location(row.get('Location', ''))
+                        
+                        if is_international:
+                            if cgst > 0 or sgst > 0 or igst > 0:
+                                if hasattr(result, 'warnings'):
+                                    result.warnings.append(f"Row {row_num}: International sales are GST exempt. Provided GST values ignored.")
+                                cgst = sgst = igst = 0.0
+                        
+                        gst_total = cgst + sgst + igst
+
+                        if round(amount, 2) < round(gst_total, 2):
+                            result.add_error(row_num, 'AMOUNT_MISMATCH', f"Gross Amount ({amount}) cannot be less than Total GST ({gst_total}).", raw_data=row)
+                            continue
+
+                        base_amount = amount - gst_total
+
+                        billing_type = "International" if is_international else "Domestic"
+                        narration = f"{billing_type} B2C Billing, {period_str}"
+
+                        v = Voucher(
+                            date=datetime.now(),
+                            voucher_type=VoucherType.CREDIT,
+                            account_code=income_head_code,
+                            amount=amount,
+                            segment=row.get('Business Segment', ''),
+                            narration=narration,
+                            status=VoucherStatus.PENDING_REVIEW,
+                            source='B2C Bulk Import',
+                            from_date=from_date,
+                            to_date=to_date,
+                            cgst_amount=cgst,
+                            sgst_amount=sgst,
+                            igst_amount=igst
+                        )
+
+                        v.party_ledger = bank_head_name
+                        v.expense_ledger = income_head_name
+                        v.account_name = income_head_name
+                        v.tally_head = income_head_name
+                        
+                        v.base_amount = base_amount
+                        v.net_payable = amount
+
+                        result.add_voucher(v)
+
+                    except ValueError as ve:
+                         result.add_error(row_num, 'DATA_ERROR', f"Invalid number format: {ve}", raw_data=row)
+                    except Exception as e:
+                         result.add_error(row_num, 'PARSE_ERROR', str(e), raw_data=row)
+
+            result.complete()
+        except Exception as e:
+            result.status = ImportStatus.FAILED
+            result.add_error(0, 'FILE_READ_ERROR', str(e))
+
+        self._current_import = result
+        return result
     
     def _map_wix_row_to_voucher(self, row: Dict, row_num: int) -> Optional[Voucher]:
         """
