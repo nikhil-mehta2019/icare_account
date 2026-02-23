@@ -285,6 +285,21 @@ class VoucherDetailDialog(QDialog):
                 
                 rows.append((f"{lbl}{narr_suffix}", dr, cr))
 
+        # --- CASE 3.5: B2C BULK IMPORT (SALES/CREDIT) ---
+        elif self._get_safe_val(voucher, 'source') == 'B2C Bulk Import':
+            bank_name = getattr(voucher, 'party_ledger', 'Bank Account')
+            income_name = getattr(voucher, 'expense_ledger', 'Operating Income')
+            base = get_amt('base_amount') or main_amount
+            cgst = get_amt('cgst_amount')
+            sgst = get_amt('sgst_amount')
+            igst = get_amt('igst_amount')
+            
+            rows.append((f"{bank_name}{narr_suffix}", main_amount, 0)) # Dr Bank (Gross)
+            rows.append((f"{income_name}{narr_suffix}", 0, base))      # Cr Income (Base)
+            if cgst > 0.01: rows.append((f"CGST Payable{narr_suffix}", 0, cgst))
+            if sgst > 0.01: rows.append((f"SGST Payable{narr_suffix}", 0, sgst))
+            if igst > 0.01: rows.append((f"IGST Payable{narr_suffix}", 0, igst))
+
         # --- CASE 4: SIMPLE MANUAL ---
         else:
             # FIX: Check for tally_head, ledger_name, account_name

@@ -226,8 +226,15 @@ class BulkImportTab(QWidget):
             ]
         else:
             columns = [
-                "Segment", "Narration", "Gross Amt", 
-                "Base Amt", "CGST", "SGST", "IGST"
+                "Segment",
+                "Product Code",
+                "Location",
+                "Narration",
+                "Gross Amt",
+                "Base Amt",
+                "CGST",
+                "SGST",
+                "IGST"
             ]
             
         self.preview_table.setColumnCount(len(columns))
@@ -291,10 +298,15 @@ class BulkImportTab(QWidget):
             if result.status == ImportStatus.FAILED:
                 if result.errors:
                     err = result.errors[0]
-                    error_msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                    # Extract message cleanly whether it's an object or a dictionary
+                    if isinstance(err, dict):
+                        error_msg = err.get("error_message", err.get("message", str(err)))
+                    else:
+                        error_msg = getattr(err, 'error_message', str(err))
                 else:
-                    error_msg = "Unknown Error"
-                raise Exception(error_msg)
+                    error_msg = "Unknown validation error."
+                QMessageBox.warning(self, "Import Error", error_msg)
+                return
 
             self.import_btn.setEnabled(result.successful_rows > 0)
             self._populate_preview(result)
@@ -319,14 +331,16 @@ class BulkImportTab(QWidget):
         for v in result.vouchers[:15]:
             r = self.preview_table.rowCount()
             self.preview_table.insertRow(r)
-            
-            self.preview_table.setItem(r, 0, QTableWidgetItem(v.segment))
-            self.preview_table.setItem(r, 1, QTableWidgetItem(v.narration))
-            self.preview_table.setItem(r, 2, QTableWidgetItem(f"{v.amount:,.2f}"))
-            self.preview_table.setItem(r, 3, QTableWidgetItem(f"{v.base_amount:,.2f}"))
-            self.preview_table.setItem(r, 4, QTableWidgetItem(f"{getattr(v, 'cgst_amount', 0):,.2f}"))
-            self.preview_table.setItem(r, 5, QTableWidgetItem(f"{getattr(v, 'sgst_amount', 0):,.2f}"))
-            self.preview_table.setItem(r, 6, QTableWidgetItem(f"{getattr(v, 'igst_amount', 0):,.2f}"))
+
+            self.preview_table.setItem(r, 0, QTableWidgetItem(str(getattr(v, 'segment', ''))))
+            self.preview_table.setItem(r, 1, QTableWidgetItem(str(getattr(v, 'product_code', ''))))
+            self.preview_table.setItem(r, 2, QTableWidgetItem(str(getattr(v, 'location', ''))))
+            self.preview_table.setItem(r, 3, QTableWidgetItem(str(getattr(v, 'narration', ''))))
+            self.preview_table.setItem(r, 4, QTableWidgetItem(f"{getattr(v, 'amount', 0.0):,.2f}"))
+            self.preview_table.setItem(r, 5, QTableWidgetItem(f"{getattr(v, 'base_amount', 0.0):,.2f}"))
+            self.preview_table.setItem(r, 6, QTableWidgetItem(f"{getattr(v, 'cgst_amount', 0.0):,.2f}"))
+            self.preview_table.setItem(r, 7, QTableWidgetItem(f"{getattr(v, 'sgst_amount', 0.0):,.2f}"))
+            self.preview_table.setItem(r, 8, QTableWidgetItem(f"{getattr(v, 'igst_amount', 0.0):,.2f}"))
 
     def _populate_payroll_preview(self, result):
         """Preserved Payroll Preview Logic."""

@@ -1,6 +1,6 @@
 {
   "version": "2.1",
-  "lastModified": "2026-02-11",
+  "lastModified": "2026-02-23",
   "homeState": "MH",
   "tallyHeads": [
     {
@@ -198,6 +198,13 @@
       "type": "DEBIT",
       "isDomestic": null,
       "isActive": true
+    },
+    {
+      "value": "123",
+      "label": "Test",
+      "type": "CREDIT",
+      "needsFranchise": false,
+      "isActive": false
     }
   ],
   "countries": [
@@ -411,6 +418,16 @@
     {
       "value": "05",
       "label": "Franchisee E",
+      "isActive": true
+    },
+    {
+      "value": "06",
+      "label": "Franchisee F",
+      "isActive": true
+    },
+    {
+      "value": "07",
+      "label": "Franchisee G",
       "isActive": true
     }
   ],

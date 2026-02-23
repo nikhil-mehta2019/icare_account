@@ -39,6 +39,8 @@ class TallyXMLGenerator:
                     self._add_purchase_voucher(request_data, v)
                 elif isinstance(v, PayrollVoucher) or v_type == DebitVoucherType.PAYROLL.value:
                     self._add_payroll_voucher(request_data, v)
+                elif self._get_val(v, 'source') == 'B2C Bulk Import':
+                    self._add_sales_voucher(request_data, v)
                 else:
                     self._add_simple_voucher(request_data, v)
             except Exception as e:
@@ -139,6 +141,40 @@ class TallyXMLGenerator:
         base = float(self._get_val(voucher, 'base_amount', 0))
         self._add_elem(dr, 'AMOUNT', str(-base))
 
+    def _add_sales_voucher(self, parent: ET.Element, voucher: Any):
+        tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
+        vch = ET.SubElement(tall_msg, 'VOUCHER')
+        v_type = self._get_val(voucher, 'tally_voucher_type', TallyVoucherType.RECEIPT)
+        vch.set('VCHTYPE', v_type)
+        vch.set('ACTION', 'Create')
+        self._add_common_fields(vch, voucher, v_type)
+        
+        # Dr Bank (Gross Amount) -> Tally expects Negative for Debit
+        bank = self._get_val(voucher, 'party_ledger', 'Bank Account')
+        total = float(self._get_val(voucher, 'amount', 0))
+        dr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
+        self._add_elem(dr, 'LEDGERNAME', bank)
+        self._add_elem(dr, 'ISDEEMEDPOSITIVE', 'Yes')
+        self._add_elem(dr, 'AMOUNT', str(-abs(total)))
+        
+        # Cr Income (Base Amount) -> Tally expects Positive for Credit
+        income = self._get_val(voucher, 'expense_ledger') or self._get_val(voucher, 'tally_head') or 'Operating Income'
+        base = float(self._get_val(voucher, 'base_amount', total))
+        cr1 = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
+        self._add_elem(cr1, 'LEDGERNAME', income)
+        self._add_elem(cr1, 'ISDEEMEDPOSITIVE', 'No')
+        self._add_elem(cr1, 'AMOUNT', str(abs(base)))
+        
+        # Cr GST Payable
+        tax_mapping = [('cgst_amount', 'CGST Payable'), ('sgst_amount', 'SGST Payable'), ('igst_amount', 'IGST Payable')]
+        for attr, ledger in tax_mapping:
+            tax_amt = float(self._get_val(voucher, attr, 0))
+            if tax_amt > 0:
+                cr2 = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
+                self._add_elem(cr2, 'LEDGERNAME', ledger)
+                self._add_elem(cr2, 'ISDEEMEDPOSITIVE', 'No')
+                self._add_elem(cr2, 'AMOUNT', str(abs(tax_amt)))
+
     def _add_simple_voucher(self, parent: ET.Element, voucher: Any):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
@@ -170,7 +206,16 @@ class TallyXMLGenerator:
         self._add_elem(vch, 'DATE', d.strftime('%Y%m%d'))
         self._add_elem(vch, 'VOUCHERTYPENAME', type_name)
         self._add_elem(vch, 'VOUCHERNUMBER', str(self._get_val(voucher, 'voucher_no', '')))
-        self._add_elem(vch, 'NARRATION', str(self._get_val(voucher, 'narration', '')))
+        # ----- Build narration including revenue details -----
+        base_narration = str(self._get_val(voucher, 'narration', ''))
+        revenue_text = str(self._get_val(voucher, 'revenue_details', '')).strip()
+
+        if revenue_text:
+            full_narration = f"{revenue_text}, {base_narration}" if base_narration else revenue_text
+        else:
+            full_narration = base_narration
+
+        self._add_elem(vch, 'NARRATION', full_narration)
 
     def _add_elem(self, parent, tag, text):
         elem = ET.SubElement(parent, tag)

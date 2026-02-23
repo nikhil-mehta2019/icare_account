@@ -719,6 +719,28 @@ class VoucherEntryTab(QWidget):
         expense_row_layout = QHBoxLayout(self.expense_details_row)
         expense_row_layout.setContentsMargins(0, 0, 0, 0)
         expense_row_layout.setSpacing(10)
+        # THEN ADD REVENUE FIELD
+        self.revenue_details_row = QWidget()
+        revenue_row_layout = QHBoxLayout(self.revenue_details_row)
+        revenue_row_layout.setContentsMargins(0,0,0,0)
+
+        revenue_label = QLabel("Revenue Details:")
+        revenue_label.setStyleSheet(
+            f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};"
+        )
+        revenue_label.setMinimumWidth(180)
+        revenue_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        revenue_row_layout.addWidget(revenue_label)
+
+        self.revenue_details_input = QLineEdit()
+        self.revenue_details_input.setMinimumHeight(FIELD_HEIGHT)
+        self.revenue_details_input.setPlaceholderText("Enter revenue description")
+        revenue_row_layout.addWidget(self.revenue_details_input)
+
+        self.revenue_details_row.setVisible(False)
+
+        amount_layout.addWidget(self.revenue_details_row)
 
         expense_label = QLabel("Expense Details:")
         expense_label.setStyleSheet(f"font-weight: 600; font-size: 12px; color: {Styles.SECONDARY};")
@@ -1249,6 +1271,7 @@ class VoucherEntryTab(QWidget):
             self.voucher_type_combo.addItem("Receipt", "Receipt")
             self.voucher_type_combo.addItem("Sales", "Sales")
             self.voucher_type_combo.addItem("Credit Note", "Credit Note")
+            
         else:
             # Typical Debit voucher types
             self.voucher_type_combo.addItem("Purchase", "Purchase")
@@ -1287,7 +1310,7 @@ class VoucherEntryTab(QWidget):
             self.tds_frame.setVisible(False)
             self.expense_details_row.setVisible(False)
             self.vendor_group.setVisible(False)
-            
+            self.revenue_details_row.setVisible(True)
             if hasattr(self, 'auto_narration_row'):
                 self.auto_narration_row.setVisible(True)
             
@@ -1298,7 +1321,7 @@ class VoucherEntryTab(QWidget):
             self.tds_frame.setVisible(True)
             self.expense_details_row.setVisible(True)
             self.vendor_group.setVisible(True)
-            
+            self.revenue_details_row.setVisible(False)
             if hasattr(self, 'auto_narration_row'):
                 self.auto_narration_row.setVisible(True)
             
@@ -1312,7 +1335,10 @@ class VoucherEntryTab(QWidget):
         
         # 4. Perform Hard Reset (Clears all inputs and goes to Step 1)
         self._reset_form()
-        
+        if self._voucher_type == "credit":
+            self.revenue_details_row.setVisible(True)
+        else:
+            self.revenue_details_row.setVisible(False)
         # 5. Update Voucher Code
         self._update_voucher_code()
     
@@ -1573,16 +1599,41 @@ class VoucherEntryTab(QWidget):
         return True
     
     def _validate_step2(self) -> bool:
-        # === STRICT ENFORCEMENT: Franchise ===
+
+        # ✅ TDS validation (only for debit vouchers)
+        if self._voucher_type == "debit":
+            tds_applicable = self.tds_app_combo.currentData() == "Y"
+            selected_ledger = self.tds_ledger_combo.currentData()
+
+            if tds_applicable and not selected_ledger:
+                QMessageBox.warning(
+                    self,
+                    "Validation Error",
+                    "TDS ledger must be selected when TDS is applicable."
+                )
+                self.tds_ledger_combo.setFocus()
+                return False
+
+        # === STRICT ENFORCEMENT: Franchise (B2B heads) ===
         if self.franchise_combo.isEnabled() and not self.franchise_combo.currentData():
-            QMessageBox.warning(self, "Validation Error", "Franchise selection is strictly required for this B2B Accounting Head.")
+            QMessageBox.warning(
+                self,
+                "Validation Error",
+                "Franchise selection is strictly required for this B2B Accounting Head."
+            )
             self.franchise_combo.setFocus()
             return False
-            
+
+        # === POS validation ===
         if not self.pos_combo.currentData():
-            QMessageBox.warning(self, "Validation Error", "Please select a Point of Supply (State).")
+            QMessageBox.warning(
+                self,
+                "Validation Error",
+                "Please select a Point of Supply (State)."
+            )
+            self.pos_combo.setFocus()
             return False
-            
+
         return True
     
     def _validate_step3(self) -> bool:
@@ -1590,6 +1641,12 @@ class VoucherEntryTab(QWidget):
         if amount <= 0: 
             QMessageBox.warning(self, "Validation Error", "Amount must be greater than 0.")
             return False
+        
+        if self._voucher_type == "credit":
+            if not self.revenue_details_input.text().strip():
+                QMessageBox.warning(self, "Validation Error", "Revenue details is required for credit vouchers.")
+                self.revenue_details_input.setFocus()
+                return False
             
         if self._voucher_type == "debit":
              vendor_text = self.vendor_combo.currentText().strip()
@@ -1633,13 +1690,14 @@ class VoucherEntryTab(QWidget):
         # === NEW: Credit Voucher Logic ===
         if self._voucher_type == "credit":
             # Format: (Free text), (for the period) billed to (Name of Franchisee)
-            free_text = self.narration_edit.toPlainText().split(',')[0] if self.narration_edit.toPlainText() else "Billing"
-            franchise = self._step_data.get('franchise_name', 'Franchisee')
-            
-            # If franchise name is missing from step data (e.g. step skipped back), try combo
+            free_text = self.revenue_details_input.text().strip()
+            if not free_text:
+                free_text = "Billing"
+
+            franchise = self._step_data.get('franchise_name', '')
             if not franchise and self.franchise_combo.isEnabled():
-                 franchise = self.franchise_combo.currentText().split(' - ')[-1]
-            
+                franchise = self.franchise_combo.currentText().split(' - ')[-1]
+
             narration = f"{free_text}, {period_str} billed to {franchise}"
             self.narration_edit.setText(narration)
             return
@@ -1703,12 +1761,15 @@ class VoucherEntryTab(QWidget):
         self._step_data['gst_applicable'] = self.gst_app_combo.currentData() == "Y"
         self._step_data['tds_applicable'] = self.tds_app_combo.currentData() == "Y"
         
-        # === NEW: Capture Franchise Name ===
+        # ⭐ NEW — Save selected TDS ledger
+        self._step_data['tds_ledger_code'] = self.tds_ledger_combo.currentData()
+        self._step_data['tds_ledger_name'] = self.tds_ledger_combo.currentText()
+
+        # Capture franchise name
         if self.franchise_combo.isEnabled() and self.franchise_combo.currentData():
-             # Extract name from "CODE - Name"
-             self._step_data['franchise_name'] = self.franchise_combo.currentText().split(' - ')[-1]
+            self._step_data['franchise_name'] = self.franchise_combo.currentText().split(' - ')[-1]
         else:
-             self._step_data['franchise_name'] = ""
+            self._step_data['franchise_name'] = ""
     
     def _save_step3_data(self):
         
@@ -1717,6 +1778,7 @@ class VoucherEntryTab(QWidget):
         self._step_data['invoice_no'] = self.invoice_no_input.text()
         self._step_data['invoice_date'] = self.invoice_date_input.date().toPython()
         self._step_data['narration'] = self.narration_edit.toPlainText()
+        self._step_data['revenue_details'] = self.revenue_details_input.text()
     
     def _build_preview(self):
         """Build the preview table and calculate totals."""
@@ -1745,30 +1807,30 @@ class VoucherEntryTab(QWidget):
         # === DEBIT VOUCHER PREVIEW ===
         if self._voucher_type == "debit":
              # 1. Dr Expense
-             self._add_preview_row(head_name, f"₹{taxable:,.2f}", "", "Expense")
-             total_dr += taxable
-             
-             # 2. Dr Input GST (Split) - Only if NOT RCM
-             if not is_rcm:
-                 if cgst > 0:
-                     self._add_preview_row("Input CGST", f"₹{cgst:,.2f}", "", "GST")
-                     total_dr += cgst
-                 if sgst > 0:
-                     self._add_preview_row("Input SGST", f"₹{sgst:,.2f}", "", "GST")
-                     total_dr += sgst
-                 if igst > 0:
-                     self._add_preview_row("Input IGST", f"₹{igst:,.2f}", "", "GST")
-                     total_dr += igst
-             
-             # 3. Cr Vendor (Net Payable)
-             vendor_display = self._step_data.get('vendor_name', 'Vendor / Party A/c')
-             self._add_preview_row(vendor_display, "", f"₹{net:,.2f}", "Party")
-             total_cr += net
+            self._add_preview_row(head_name, f"₹{taxable:,.2f}", "", "Expense")
+            total_dr += taxable
+            
+            # 2. Dr Input GST (Split) - Only if NOT RCM
+            if not is_rcm:
+                if cgst > 0:
+                    self._add_preview_row("Input CGST", f"₹{cgst:,.2f}", "", "GST")
+                    total_dr += cgst
+                if sgst > 0:
+                    self._add_preview_row("Input SGST", f"₹{sgst:,.2f}", "", "GST")
+                    total_dr += sgst
+                if igst > 0:
+                    self._add_preview_row("Input IGST", f"₹{igst:,.2f}", "", "GST")
+                    total_dr += igst
+            
+            # 3. Cr Vendor (Net Payable)
+            vendor_display = self._step_data.get('vendor_name', 'Vendor / Party A/c')
+            self._add_preview_row(vendor_display, "", f"₹{net:,.2f}", "Party")
+            total_cr += net
              
              # 4. Cr TDS
-             if tds > 0:
-                 self._add_preview_row("TDS Payable", "", f"₹{tds:,.2f}", "TDS / WHT")
-                 total_cr += tds
+            if tds > 0:
+                tds_ledger = self._step_data.get('tds_ledger_name') or "TDS Payable"
+                self._add_preview_row(tds_ledger, "", f"₹{tds:,.2f}", "TDS / WHT")
         
         # === CREDIT VOUCHER PREVIEW ===
         else: 
@@ -1793,6 +1855,11 @@ class VoucherEntryTab(QWidget):
                  total_cr += igst
                  
         self.preview_narration.setText(f"Narration: {self._step_data.get('narration', '')}")
+        rev = self._step_data.get("revenue_details", "")
+        if rev and self._voucher_type == "credit":
+            self.preview_narration.setText(
+                f"Revenue: {rev}\n{self.preview_narration.text()}"
+            )
         
         # === UPDATE TOTAL LABELS ===
         self.preview_total_dr.setText(f"Total Dr: ₹{total_dr:,.2f}")
@@ -1840,7 +1907,7 @@ class VoucherEntryTab(QWidget):
                 narration=self._step_data.get('narration', ''),
                 reference_id=reference_id, # Updated reference
                 status=VoucherStatus.PENDING_REVIEW,
-                
+                revenue_details=self._step_data.get('revenue_details', ''),
                 party_name=vendor,
                 invoice_no=inv_no,
                 invoice_date=inv_date,
@@ -1849,7 +1916,10 @@ class VoucherEntryTab(QWidget):
                 cgst_amount=self._step_data.get('cgst_amount', 0.0),
                 sgst_amount=self._step_data.get('sgst_amount', 0.0),
                 igst_amount=self._step_data.get('igst_amount', 0.0)
+
+
             )
+            v.tds_ledger = self._step_data.get('tds_ledger_name')
             
             # === FIX FOR REVIEW TAB COMPATIBILITY ===
             # Explicitly save Tally Head Name for Review Screen
@@ -1889,6 +1959,10 @@ class VoucherEntryTab(QWidget):
             QMessageBox.information(self, "Success", "Voucher saved successfully!")
             self.voucher_saved.emit(v)
             self._reset_form()
+            if self._voucher_type == "credit":
+                self.revenue_details_row.setVisible(True)
+            else:
+                self.revenue_details_row.setVisible(False)
             
         except TypeError as e:
             QMessageBox.critical(self, "System Error", f"Model Mismatch: {str(e)}\nPlease check models/voucher.py")
