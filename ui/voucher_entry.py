@@ -1414,26 +1414,47 @@ class VoucherEntryTab(QWidget):
             is_foreign = self.config.is_pos_foreign(state_code)
             
             if is_foreign:
-                self.gst_type_label.setText("GST Type: RCM (Reverse Charge)")
-                self.pos_indicator.setText("Foreign - RCM")
-                self.pos_indicator.setStyleSheet(f"color: {Styles.ERROR}; font-size: 11px; font-weight: bold;")
-                self.rcm_indicator.setText("RCM applies: Output GST will be used (Reverse Charge)")
-                self.rcm_indicator.setVisible(True)
-                self.gst_split_label.setText("(Output CGST + Output SGST)")
+                # Differentiate between Import (Debit/Purchase) and Export (Credit/Sale)
+                if self._voucher_type == "debit": 
+                    self.gst_type_label.setText("GST Type: RCM (Reverse Charge)")
+                    self.pos_indicator.setText("Foreign - Import (RCM)")
+                    self.pos_indicator.setStyleSheet(f"color: {Styles.ERROR}; font-size: 11px; font-weight: bold;")
+                    self.rcm_indicator.setText("RCM applies: Output GST will be used (Reverse Charge)")
+                    self.rcm_indicator.setStyleSheet(f"color: {Styles.ERROR}; font-size: 11px; font-weight: bold; padding-left: 160px;")
+                    self.rcm_indicator.setVisible(True)
+                    self.gst_split_label.setText("(Output CGST + Output SGST)")
+                    self._is_rcm = True
+                else: 
+                    # Export of Services (Sale) -> Zero-Rated under LUT
+                    self.gst_type_label.setText("GST Type: Zero-Rated (LUT)")
+                    self.pos_indicator.setText("Foreign - Export (Zero-Rated)")
+                    self.pos_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold;")
+                    self.rcm_indicator.setText("Export of Services: GST is 0% under LUT")
+                    self.rcm_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold; padding-left: 160px;")
+                    self.rcm_indicator.setVisible(True)
+                    self._is_rcm = False
+                    
+                    # Auto-set GST to 0% for Export if available in combo
+                    zero_idx = self.gst_rate_combo.findText("0%")
+                    if zero_idx >= 0:
+                        self.gst_rate_combo.setCurrentIndex(zero_idx)
+                    self.gst_split_label.setText("(GST: 0% LUT)")
+                    
             elif gst_type == "CGST_SGST":
                 self.gst_type_label.setText("GST Type: CGST + SGST (Intra-State)")
                 self.pos_indicator.setText("Intra-State")
                 self.pos_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold;")
                 self.rcm_indicator.setVisible(False)
                 self._update_gst_split()
+                self._is_rcm = False
             else:
                 self.gst_type_label.setText("GST Type: IGST (Inter-State)")
                 self.pos_indicator.setText("Inter-State")
                 self.pos_indicator.setStyleSheet(f"color: {Styles.WARNING}; font-size: 11px; font-weight: bold;")
                 self.rcm_indicator.setVisible(False)
                 self._update_gst_split()
+                self._is_rcm = False
             
-            self._is_rcm = is_foreign
         else:
             self.rcm_indicator.setVisible(False)
             self._is_rcm = False
@@ -1447,8 +1468,17 @@ class VoucherEntryTab(QWidget):
     
     def _update_gst_split(self):
         rate = self.gst_rate_combo.currentData()
-        if rate:
+        if rate is not None:
             state_code = self.pos_combo.currentData()
+            is_foreign = False
+            if state_code:
+                 is_foreign = self.config.is_pos_foreign(state_code)
+                 
+            # Force UI to display Zero-Rated LUT for Export regardless of rate combobox manipulation
+            if is_foreign and self._voucher_type == "credit":
+                 self.gst_split_label.setText("(GST: 0% LUT)")
+                 return
+                 
             gst_type = self.config.determine_gst_type(state_code) if state_code else "CGST_SGST"
             if gst_type == "CGST_SGST":
                 half = rate / 2
@@ -1585,16 +1615,16 @@ class VoucherEntryTab(QWidget):
             return False
         
         # Validation for Credit Vouchers (Manual Entry)
-        if self._voucher_type == "credit":
-            head_text = self.tally_head_combo.currentText()
-            # 1A2 is the hardcoded B2C identifier in your detection logic
-            if "1A2" in head_text or "B2C" in head_text.upper():
-                from PySide6.QtWidgets import QMessageBox
-                QMessageBox.critical(
-                    self, "Entry Restricted", 
-                    "B2C transactions (1A2) are restricted to Bulk Import only."
-                )
-                return False # Blocks the 'Next' button
+        # if self._voucher_type == "credit":
+        #     head_text = self.tally_head_combo.currentText()
+        #     # 1A2 is the hardcoded B2C identifier in your detection logic
+        #     if "1A2" in head_text or "B2C" in head_text.upper():
+        #         from PySide6.QtWidgets import QMessageBox
+        #         QMessageBox.critical(
+        #             self, "Entry Restricted", 
+        #             "B2C transactions (1A2) are restricted to Bulk Import only."
+        #         )
+        #         return False # Blocks the 'Next' button
                 
         return True
     
