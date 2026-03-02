@@ -138,6 +138,10 @@ class VoucherEntryTab(QWidget):
         self._setup_ui()
         self._connect_signals()
         self._update_step_visibility()
+        # Set default voucher type as credit and update UI
+        self.credit_radio.setChecked(True)
+        self._voucher_type = "credit"
+        self._on_type_changed(self.credit_radio)
         
         # Initial Population
         self._populate_voucher_types()
@@ -258,7 +262,7 @@ class VoucherEntryTab(QWidget):
         self.type_group = QButtonGroup(self)
         
         self.credit_radio = QRadioButton("CREDIT")
-        self.credit_radio.setChecked(False)
+        self.credit_radio.setChecked(True)
         self.credit_radio.setStyleSheet(f"color: {Styles.TEXT_LIGHT}; font-weight: bold; font-size: 12px;")
         self.type_group.addButton(self.credit_radio, 0)
         type_layout.addWidget(self.credit_radio)
@@ -1299,11 +1303,11 @@ class VoucherEntryTab(QWidget):
         new_type = "credit" if button == self.credit_radio else "debit"
         
         # Optimization: If type is already selected, do nothing
-        if self._voucher_type == new_type:
-            return
-
         self._voucher_type = new_type
-        
+
+        if self._voucher_type != new_type:
+            self._voucher_type = new_type
+
         # 2. Update UI Visibility based on Type
         if self._voucher_type == "credit":
             # CREDIT: Hide Debit-specific fields
@@ -1429,15 +1433,24 @@ class VoucherEntryTab(QWidget):
                     self.gst_type_label.setText("GST Type: Zero-Rated (LUT)")
                     self.pos_indicator.setText("Foreign - Export (Zero-Rated)")
                     self.pos_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold;")
+                    # 1. AUTO-SELECT "Zero rated under LUT" in the Applicable Dropdown
+                    lut_idx = self.gst_app_combo.findData("LUT")
+                    if lut_idx >= 0:
+                        # Temporarily block signals so it doesn't override our text labels below
+                        self.gst_app_combo.blockSignals(True)
+                        self.gst_app_combo.setCurrentIndex(lut_idx)
+                        self.gst_app_combo.blockSignals(False)
+                    
+                    # 2. AUTO-SELECT "0%" in the Rate Dropdown
+                    zero_idx = self.gst_rate_combo.findData(0.0)
+                    if zero_idx >= 0:
+                        self.gst_rate_combo.blockSignals(True)
+                        self.gst_rate_combo.setCurrentIndex(zero_idx)
+                        self.gst_rate_combo.blockSignals(False)
+                        
                     self.rcm_indicator.setText("Export of Services: GST is 0% under LUT")
-                    self.rcm_indicator.setStyleSheet(f"color: {Styles.SUCCESS}; font-size: 11px; font-weight: bold; padding-left: 160px;")
                     self.rcm_indicator.setVisible(True)
                     self._is_rcm = False
-                    
-                    # Auto-set GST to 0% for Export if available in combo
-                    zero_idx = self.gst_rate_combo.findText("0%")
-                    if zero_idx >= 0:
-                        self.gst_rate_combo.setCurrentIndex(zero_idx)
                     self.gst_split_label.setText("(GST: 0% LUT)")
                     
             elif gst_type == "CGST_SGST":
@@ -1462,8 +1475,27 @@ class VoucherEntryTab(QWidget):
         self._validate_step2()
     
     def _on_gst_app_changed(self, index):
-        is_applicable = self.gst_app_combo.currentData() == "Y"
+        # 1. Define app_code first
+        app_code = self.gst_app_combo.currentData()
+        
+        # 2. Check if applicable
+        is_applicable = app_code in ["Y", "LUT"]
         self.gst_details_frame.setVisible(is_applicable)
+        
+        # 3. Apply Zero-Rated UI states manually if LUT is selected
+        if app_code == "LUT":
+            self.gst_type_label.setText("GST Type: Zero-Rated (LUT)")
+            # Using hardcoded green hex code in case Styles.SUCCESS is not imported properly
+            self.gst_type_label.setStyleSheet("font-weight: bold; font-size: 13px; color: #388E3C;")
+            self._is_rcm = False
+            self.rcm_indicator.setVisible(False)
+            
+            # Force rate combobox to 0%
+            zero_idx = self.gst_rate_combo.findText("0%")
+            if zero_idx >= 0:
+                self.gst_rate_combo.setCurrentIndex(zero_idx)
+        
+        self._update_gst_split()
         self._validate_step2()
     
     def _update_gst_split(self):
@@ -1474,8 +1506,11 @@ class VoucherEntryTab(QWidget):
             if state_code:
                  is_foreign = self.config.is_pos_foreign(state_code)
                  
-            # Force UI to display Zero-Rated LUT for Export regardless of rate combobox manipulation
-            if is_foreign and self._voucher_type == "credit":
+            # Check if user manually selected LUT
+            is_manual_lut = self.gst_app_combo.currentData() == "LUT"
+                 
+            # Force UI to display Zero-Rated LUT for Export or Manual LUT
+            if (is_foreign and self._voucher_type == "credit") or is_manual_lut:
                  self.gst_split_label.setText("(GST: 0% LUT)")
                  return
                  
@@ -1502,9 +1537,14 @@ class VoucherEntryTab(QWidget):
     
     def _calculate_tax_breakup(self):
         input_amount = self.amount_input.value()
-        gst_applicable = self.gst_app_combo.currentData() == "Y"
+        app_code = self.gst_app_combo.currentData()
+        gst_applicable = app_code in ["Y", "LUT"]
         gst_rate = self.gst_rate_combo.currentData() or 0
         
+        # Force 0% calculation explicitly when LUT is active
+        if app_code == "LUT":
+            gst_rate = 0.0
+
         # Initialize split variables
         cgst_amt = 0.0
         sgst_amt = 0.0
@@ -2053,9 +2093,14 @@ class VoucherEntryTab(QWidget):
 
     def showEvent(self, event):
         """Refresh data whenever the tab becomes visible."""
+        """Refresh data whenever the tab becomes visible."""
         super().showEvent(event)
+        
+        # Refresh all master data dropdowns to reflect Admin changes
         self._populate_vendors()
         self._populate_tally_heads()
+        self._populate_franchises() 
+        self._populate_products()
 
     def _on_radio_toggled(self, checked):
         """Handle individual radio toggle."""

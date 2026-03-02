@@ -2,13 +2,14 @@
 
 import json
 import os
+import logging
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from models.master_data import MasterData
 from services.data_service import DataService
-
+from services.path_utils import ensure_persistent_file
 
 def get_persistent_path(filename):
     # This path remains the same even if the .exe folder is replaced
@@ -84,6 +85,8 @@ class VoucherConfigService:
         self._loaded = False
         self.master_data = None
         self.data_service = DataService()
+        # Point straight to persistent file (copies default from PyInstaller bundle on first run)
+        self.config_path = ensure_persistent_file('voucher_config.json', 'data/voucher_config.json')
         self.load_config()
     
     def load_config(self) -> bool:
@@ -361,7 +364,8 @@ class VoucherConfigService:
             # Default options
             data = [
                 {"code": "Y", "name": "Yes - GST Applicable", "value": True},
-                {"code": "N", "name": "No - Exempt/Non-GST", "value": False}
+                {"code": "N", "name": "No - Exempt/Non-GST", "value": False},
+                {"code": "LUT", "name": "Zero rated under LUT", "value": True}
             ]
         return [
             DropdownOption(
@@ -392,7 +396,11 @@ class VoucherConfigService:
     
     def get_gst_rates(self) -> List[float]:
         """Get available GST rates."""
-        return self._config.get("gstRates", [5.0, 12.0, 18.0, 28.0])
+        rates = self._config.get("gstRates", [5.0, 12.0, 18.0, 28.0])
+        # Ensure 0.0 is always available for Exports/LUT
+        if 0.0 not in rates:
+            rates.insert(0, 0.0) 
+        return rates
     
     def get_default_gst_rate(self) -> float:
         """Get default GST rate."""

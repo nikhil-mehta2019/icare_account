@@ -7,21 +7,23 @@ from typing import List, Optional, Any
 from pathlib import Path
 
 # Import models
-from models.financial_year import FinancialYear
+#from models.financial_year import FinancialYear
 from models.voucher import Voucher, VoucherStatus
 from models.master_data import MasterData
 from models.debit_voucher import (
     JournalVoucher, PurchaseVoucher, PayrollVoucher, 
     DebitVoucherType, GSTConfig, TDSConfig
 )
+from models.financial_year import FinancialYear
 from services.backup_service import BackupService
+from services.path_utils import ensure_persistent_file, get_user_data_dir
 
-def get_persistent_path(filename):
+# def get_persistent_path(filename):
     # This path remains the same even if the .exe folder is replaced
-    app_data = Path(os.getenv('LOCALAPPDATA')) / "iCareAccount"
-    app_data.mkdir(parents=True, exist_ok=True)
-    return str(app_data / filename)
-    
+    # app_data = Path(os.getenv('LOCALAPPDATA')) / "iCareAccount"
+    # app_data.mkdir(parents=True, exist_ok=True)
+    # return str(app_data / filename)
+        
 class DataService:
     """
     Handles all data persistence operations.
@@ -29,14 +31,17 @@ class DataService:
     """
     
     def __init__(self, data_dir: str = None):
+        # 1. ALWAYS resolve to the User's Persistent Data Directory
         if data_dir is None:
-            app_dir = Path(__file__).parent.parent
-            data_dir = app_dir / 'data'
+            self.data_dir = get_user_data_dir()
+        else:
+            self.data_dir = Path(data_dir)
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            
+        # 2. FIRST RUN INITIALIZATION: Copy defaults from bundle if missing
+        self.master_data_file = ensure_persistent_file('master_data.json', 'data/master_data.json')
         
-        self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.master_data_file = self.data_dir / 'master_data.json'
+        # Vouchers are strictly runtime, so just point to persistent dir
         self.vouchers_file = self.data_dir / 'vouchers.json'
         
         self._master_data: Optional[MasterData] = None
