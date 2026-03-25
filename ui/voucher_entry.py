@@ -17,7 +17,7 @@ from types import SimpleNamespace # Added for object creation
 
 from models.voucher import Voucher, VoucherStatus
 from models.account_head import VoucherType
-from services.data_service import DataService
+from services.data_provider import DataProvider
 from services.voucher_config_service import get_voucher_config
 from .styles import Styles
 
@@ -1220,12 +1220,13 @@ class VoucherEntryTab(QWidget):
     
     def _populate_pos_states(self):
         self.pos_combo.clear()
-        states = self.config.get_pos_states()
+        # NOW COMES DIRECTLY FROM DB SERVICE
+        states = self.data_service.get_point_of_supply_states() 
         home_idx = 0
         for i, state in enumerate(states):
-            suffix = " (Home State)" if state.is_home_state else ""
-            self.pos_combo.addItem(f"{state.name}{suffix}", state.code)
-            if state.is_home_state:
+            suffix = " (Home State)" if state['is_home_state'] else ""
+            self.pos_combo.addItem(f"{state['name']}{suffix}", state['code'])
+            if state['is_home_state']:
                 home_idx = i
         self.pos_combo.setCurrentIndex(home_idx)
     
@@ -1253,11 +1254,11 @@ class VoucherEntryTab(QWidget):
             self.tds_app_combo.addItem(opt.name, opt.code)
     
     def _populate_business_segments(self):
-        """Populate business segments dropdown."""
         self.segment_combo.clear()
-        segments = self.config.get_business_segments()
+        # NOW COMES DIRECTLY FROM DB SERVICE
+        segments = self.data_service.get_business_segments() 
         for seg in segments:
-            self.segment_combo.addItem(seg.name, seg.code)
+            self.segment_combo.addItem(seg['name'], seg['code'])
     
     def _populate_tds_ledgers(self):
         """Populate TDS ledgers dropdown."""
@@ -1285,12 +1286,10 @@ class VoucherEntryTab(QWidget):
             self.voucher_type_combo.addItem("Contra", "Contra")
             
     def _populate_vendors(self):
-        """Populate Vendor Dropdown (Simulated for now)."""
         self.vendor_combo.clear()
         self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
-        
-        # Load from Config Service
-        vendors = self.config.get_all_vendors()
+        # NOW COMES DIRECTLY FROM DB SERVICE
+        vendors = self.data_service.get_vendors() 
         for v in vendors:
             self.vendor_combo.addItem(v['name'], v['name'])
     

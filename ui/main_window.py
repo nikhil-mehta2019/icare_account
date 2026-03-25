@@ -203,9 +203,12 @@ class MainWindow(QMainWindow):
         self.time_label.setText(datetime.now().strftime("%H:%M:%S"))
     
     def _update_status_bar(self):
-        """Update status bar information."""
-        vouchers = self.data_service.get_vouchers()
-        self.voucher_count_label.setText(f"Vouchers: {len(vouchers)}")
+        """Update status bar information directly from DB."""
+        try:
+            count = self.data_service.get_voucher_count()
+            self.voucher_count_label.setText(f"Vouchers in DB: {count}")
+        except:
+            self.voucher_count_label.setText("Vouchers: DB Connected")
     
     def _on_voucher_saved(self, voucher):
         """Handle voucher saved event."""
@@ -219,9 +222,8 @@ class MainWindow(QMainWindow):
     
     def _on_settings_changed(self):
         """Handle settings changed event."""
-        # Reload master data in voucher entry tab
-        self.voucher_tab.master_data = self.data_service.reload_master_data()
-        self.data_status_label.setText("Settings updated")
+        # No need to reload memory anymore; DB queries fetch live data!
+        self.data_status_label.setText("Settings updated in Database")
     
     def _on_tab_changed(self, index):
         """Handle tab change."""

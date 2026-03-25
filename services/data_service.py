@@ -404,3 +404,10 @@ class DataService:
                 raise e
             # Log and block for any other unexpected system errors to be safe
             raise ValueError(f"Data Safety Block: Classification check failed - {str(e)}")
+
+    def save_voucher_config(self, config_data: dict) -> None:
+        """
+        Placeholder for DatabaseDataService override. 
+        If running in JSON mode, VoucherConfigService handles saving directly.
+        """
+        pass

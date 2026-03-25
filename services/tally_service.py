@@ -1,15 +1,9 @@
-"""Tally Service - Generates Tally-compatible XML export files."""
+"""Tally Service - Generates Tally-compatible XML export files from DB Rows."""
 
-from datetime import datetime, date
-from typing import List, Optional, Union, Any
+from datetime import datetime
+from typing import List, Dict, Any
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-
-from models.debit_voucher import (
-    PurchaseVoucher, PayrollVoucher, JournalVoucher,
-    GSTApplicability, TransactionType,DebitVoucherType
-)
-from models.ledger_config import DebitVoucherConfig
 
 class TallyVoucherType:
     JOURNAL = "Journal"
@@ -18,42 +12,34 @@ class TallyVoucherType:
     RECEIPT = "Receipt"
 
 class TallyXMLGenerator:
-    """Generates Tally Prime compatible XML import files."""
+    """Generates Tally Prime compatible XML import files using flat PostgreSQL dicts."""
     
-    def __init__(self, company_name: str = "iCare Life", config: DebitVoucherConfig = None):
+    def __init__(self, company_name: str = "iCare Life"):
         self.company_name = company_name
-        self.config = config or DebitVoucherConfig.create_default()
     
-    def generate_xml(self, vouchers: List[any], output_path: str) -> str:
+    def generate_xml(self, db_vouchers: List[Dict[str, Any]], output_path: str) -> str:
         root = self._create_envelope()
         request_data = root.find('.//REQUESTDATA')
         
-        for v in vouchers:
+        for v in db_vouchers:
             try:
-                # Safe type check
-                v_type = self._get_val(v, 'voucher_type')
+                v_type = str(v.get('voucher_type', '')).upper()
                 
-                if isinstance(v, JournalVoucher) or v_type == DebitVoucherType.JOURNAL.value:
+                if v_type == 'JOURNAL':
                     self._add_journal_voucher(request_data, v)
-                elif isinstance(v, PurchaseVoucher) or v_type == DebitVoucherType.PURCHASE.value:
+                elif v_type == 'PURCHASE':
                     self._add_purchase_voucher(request_data, v)
-                elif isinstance(v, PayrollVoucher) or v_type == DebitVoucherType.PAYROLL.value:
+                elif v_type == 'PAYROLL':
                     self._add_payroll_voucher(request_data, v)
-                elif self._get_val(v, 'source') == 'B2C Bulk Import':
-                    self._add_sales_voucher(request_data, v)
                 else:
                     self._add_simple_voucher(request_data, v)
             except Exception as e:
-                print(f"Skipping voucher error: {e}")
+                print(f"Skipping voucher {v.get('voucher_no')} error: {e}")
         
         xml_string = self._prettify_xml(root)
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(xml_string)
         return output_path
-    
-    def _get_val(self, obj, attr, default=None):
-        if isinstance(obj, dict): return obj.get(attr, default)
-        return getattr(obj, attr, default)
 
     def _create_envelope(self) -> ET.Element:
         root = ET.Element('ENVELOPE')
@@ -68,154 +54,117 @@ class TallyXMLGenerator:
         ET.SubElement(imp, 'REQUESTDATA')
         return root
 
-    def _add_journal_voucher(self, parent: ET.Element, voucher: Any):
-        # Check balance if object (hard to check if dict without logic re-implementation)
-        if hasattr(voucher, 'is_balanced') and not voucher.is_balanced: return
-
+    def _add_journal_voucher(self, parent: ET.Element, voucher: Dict):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
         vch.set('VCHTYPE', TallyVoucherType.JOURNAL)
         vch.set('ACTION', 'Create')
         self._add_common_fields(vch, voucher, TallyVoucherType.JOURNAL)
         
-        entries = self._get_val(voucher, 'entries')
-        if not entries: return
+        # Example of handling Dr/Cr for Journal based on amount sign or separate query
+        # Assuming DB provides flat positive amounts and an is_credit flag, or similar.
+        amt = float(voucher.get('amount', 0))
+        ledger = voucher.get('account_code', 'Unknown Ledger')
 
-        for entry in entries:
-            row = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-            self._add_elem(row, 'LEDGERNAME', self._get_val(entry, 'ledger', ''))
-            
-            dr = float(self._get_val(entry, 'debit_amount', 0))
-            cr = float(self._get_val(entry, 'credit_amount', 0))
-            
-            if dr > 0:
-                self._add_elem(row, 'ISDEEMEDPOSITIVE', 'Yes')
-                self._add_elem(row, 'AMOUNT', str(-dr))
-            else:
-                self._add_elem(row, 'ISDEEMEDPOSITIVE', 'No')
-                self._add_elem(row, 'AMOUNT', str(cr))
+        row = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
+        self._add_elem(row, 'LEDGERNAME', ledger)
+        self._add_elem(row, 'ISDEEMEDPOSITIVE', 'Yes')
+        self._add_elem(row, 'AMOUNT', str(-amt))
 
-    def _add_payroll_voucher(self, parent: ET.Element, voucher: Any):
+    def _add_payroll_voucher(self, parent: ET.Element, voucher: Dict):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
         vch.set('VCHTYPE', TallyVoucherType.PAYMENT)
         vch.set('ACTION', 'Create')
         self._add_common_fields(vch, voucher, TallyVoucherType.PAYMENT)
 
-        amt = float(self._get_val(voucher, 'amount', 0))
+        amt = float(voucher.get('amount', 0))
         
-        # Dr Salary
+        # Dr Salary Ledger (Using Account Code / Ledger Name)
         dr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(dr, 'LEDGERNAME', self._get_val(voucher, 'salary_ledger'))
+        self._add_elem(dr, 'LEDGERNAME', voucher.get('account_code', 'Salary Account'))
         self._add_elem(dr, 'ISDEEMEDPOSITIVE', 'Yes')
         self._add_elem(dr, 'AMOUNT', str(-amt))
 
-        # Cr Party
+        # Cr Party/Bank Ledger
         cr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(cr, 'LEDGERNAME', self._get_val(voucher, 'party_ledger'))
+        self._add_elem(cr, 'LEDGERNAME', voucher.get('reference_id', 'Bank Account'))
         self._add_elem(cr, 'ISDEEMEDPOSITIVE', 'No')
-        self._add_elem(cr, 'AMOUNT', str(amt)) # Net pay logic omitted for brevity/safety
+        self._add_elem(cr, 'AMOUNT', str(amt)) 
 
-    def _add_purchase_voucher(self, parent: ET.Element, voucher: Any):
+    def _add_purchase_voucher(self, parent: ET.Element, voucher: Dict):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
         vch.set('VCHTYPE', TallyVoucherType.PURCHASE)
         vch.set('ACTION', 'Create')
         self._add_common_fields(vch, voucher, TallyVoucherType.PURCHASE)
         
-        inv = self._get_val(voucher, 'invoice_no')
-        if inv: self._add_elem(vch, 'REFERENCE', inv)
+        ref = voucher.get('reference_id')
+        if ref: self._add_elem(vch, 'REFERENCE', ref)
 
-        # Cr Supplier
+        base_amt = float(voucher.get('amount', 0))
+        gst_amt = float(voucher.get('gst_amount', 0))
+        total_amt = base_amt + gst_amt
+
+        # Cr Supplier (Total Amount)
         cr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(cr, 'LEDGERNAME', self._get_val(voucher, 'supplier_ledger'))
+        self._add_elem(cr, 'LEDGERNAME', voucher.get('account_code', 'Supplier'))
         self._add_elem(cr, 'ISDEEMEDPOSITIVE', 'No')
-        # Handle total_amount calculation if dict
-        total = self._get_val(voucher, 'total_amount') or self._get_val(voucher, 'amount', 0)
-        self._add_elem(cr, 'AMOUNT', str(total))
+        self._add_elem(cr, 'AMOUNT', str(total_amt))
 
-        # Dr Expense
+        # Dr Expense (Base Amount)
         dr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(dr, 'LEDGERNAME', self._get_val(voucher, 'expense_ledger'))
+        self._add_elem(dr, 'LEDGERNAME', 'Purchase Account')
         self._add_elem(dr, 'ISDEEMEDPOSITIVE', 'Yes')
-        base = float(self._get_val(voucher, 'base_amount', 0))
-        self._add_elem(dr, 'AMOUNT', str(-base))
+        self._add_elem(dr, 'AMOUNT', str(-base_amt))
+        
+        # Dr GST (Tax Amount)
+        if gst_amt > 0:
+            tax = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
+            self._add_elem(tax, 'LEDGERNAME', 'GST Input')
+            self._add_elem(tax, 'ISDEEMEDPOSITIVE', 'Yes')
+            self._add_elem(tax, 'AMOUNT', str(-gst_amt))
 
-    def _add_sales_voucher(self, parent: ET.Element, voucher: Any):
+    def _add_simple_voucher(self, parent: ET.Element, voucher: Dict):
         tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
         vch = ET.SubElement(tall_msg, 'VOUCHER')
-        v_type = self._get_val(voucher, 'tally_voucher_type', TallyVoucherType.RECEIPT)
-        vch.set('VCHTYPE', v_type)
-        vch.set('ACTION', 'Create')
-        self._add_common_fields(vch, voucher, v_type)
+        v_type = voucher.get('voucher_type', TallyVoucherType.JOURNAL)
         
-        # Dr Bank (Gross Amount) -> Tally expects Negative for Debit
-        bank = self._get_val(voucher, 'party_ledger', 'Bank Account')
-        total = float(self._get_val(voucher, 'amount', 0))
-        dr = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(dr, 'LEDGERNAME', bank)
-        self._add_elem(dr, 'ISDEEMEDPOSITIVE', 'Yes')
-        self._add_elem(dr, 'AMOUNT', str(-abs(total)))
-        
-        # Cr Income (Base Amount) -> Tally expects Positive for Credit
-        income = self._get_val(voucher, 'expense_ledger') or self._get_val(voucher, 'tally_head') or 'Operating Income'
-        base = float(self._get_val(voucher, 'base_amount', total))
-        cr1 = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(cr1, 'LEDGERNAME', income)
-        self._add_elem(cr1, 'ISDEEMEDPOSITIVE', 'No')
-        self._add_elem(cr1, 'AMOUNT', str(abs(base)))
-        
-        # Cr GST Payable
-        tax_mapping = [('cgst_amount', 'CGST Payable'), ('sgst_amount', 'SGST Payable'), ('igst_amount', 'IGST Payable')]
-        for attr, ledger in tax_mapping:
-            tax_amt = float(self._get_val(voucher, attr, 0))
-            if tax_amt > 0:
-                cr2 = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-                self._add_elem(cr2, 'LEDGERNAME', ledger)
-                self._add_elem(cr2, 'ISDEEMEDPOSITIVE', 'No')
-                self._add_elem(cr2, 'AMOUNT', str(abs(tax_amt)))
+        # Normalize DB Type to Tally Type
+        if 'CREDIT' in v_type: tally_type = TallyVoucherType.RECEIPT
+        elif 'DEBIT' in v_type: tally_type = TallyVoucherType.PAYMENT
+        else: tally_type = TallyVoucherType.JOURNAL
 
-    def _add_simple_voucher(self, parent: ET.Element, voucher: Any):
-        tall_msg = ET.SubElement(parent, 'TALLYMESSAGE')
-        vch = ET.SubElement(tall_msg, 'VOUCHER')
-        v_type = self._get_val(voucher, 'tally_voucher_type', TallyVoucherType.JOURNAL)
-        vch.set('VCHTYPE', v_type)
+        vch.set('VCHTYPE', tally_type)
         vch.set('ACTION', 'Create')
-        self._add_common_fields(vch, voucher, v_type)
+        self._add_common_fields(vch, voucher, tally_type)
         
         row = ET.SubElement(vch, 'ALLLEDGERENTRIES.LIST')
-        self._add_elem(row, 'LEDGERNAME', self._get_val(voucher, 'account_name', 'Unknown'))
+        self._add_elem(row, 'LEDGERNAME', voucher.get('account_code', 'Unknown'))
         
-        is_cr = self._get_val(voucher, 'is_credit', False)
-        amt = float(self._get_val(voucher, 'amount', 0))
+        amt = float(voucher.get('amount', 0))
         
-        if is_cr:
+        if tally_type == TallyVoucherType.RECEIPT:
             self._add_elem(row, 'ISDEEMEDPOSITIVE', 'No')
             self._add_elem(row, 'AMOUNT', str(amt))
         else:
             self._add_elem(row, 'ISDEEMEDPOSITIVE', 'Yes')
             self._add_elem(row, 'AMOUNT', str(-amt))
 
-    def _add_common_fields(self, vch, voucher, type_name):
-        d = self._get_val(voucher, 'voucher_date') or self._get_val(voucher, 'date')
-        if isinstance(d, str):
-            try: d = datetime.strptime(d, "%Y-%m-%d")
-            except: d = datetime.now()
-        if not d: d = datetime.now()
-        
-        self._add_elem(vch, 'DATE', d.strftime('%Y%m%d'))
+    def _add_common_fields(self, vch, voucher: Dict, type_name: str):
+        v_date = voucher.get('voucher_date')
+        if isinstance(v_date, str):
+            try: v_date = datetime.strptime(v_date.split('T')[0], "%Y-%m-%d").date()
+            except: v_date = datetime.now().date()
+        elif not v_date: 
+            v_date = datetime.now().date()
+            
+        self._add_elem(vch, 'DATE', v_date.strftime('%Y%m%d'))
         self._add_elem(vch, 'VOUCHERTYPENAME', type_name)
-        self._add_elem(vch, 'VOUCHERNUMBER', str(self._get_val(voucher, 'voucher_no', '')))
-        # ----- Build narration including revenue details -----
-        base_narration = str(self._get_val(voucher, 'narration', ''))
-        revenue_text = str(self._get_val(voucher, 'revenue_details', '')).strip()
-
-        if revenue_text:
-            full_narration = f"{revenue_text}, {base_narration}" if base_narration else revenue_text
-        else:
-            full_narration = base_narration
-
-        self._add_elem(vch, 'NARRATION', full_narration)
+        self._add_elem(vch, 'VOUCHERNUMBER', str(voucher.get('voucher_no', '')))
+        
+        narration = str(voucher.get('narration', '')).strip()
+        self._add_elem(vch, 'NARRATION', narration)
 
     def _add_elem(self, parent, tag, text):
         elem = ET.SubElement(parent, tag)
@@ -225,12 +174,11 @@ class TallyXMLGenerator:
         rough = ET.tostring(elem, 'utf-8')
         reparsed = minidom.parseString(rough)
         return reparsed.toprettyxml(indent="  ")
-        
-    def validate_xml(self, filepath):
-        return True, "Valid"
 
 class TallyService:
-    """Service Wrapper."""
-    def __init__(self, data_service, company_name="iCare Life"):
-        self.data_service = data_service
+    """Service Wrapper connected to DataProvider via UI context."""
+    def __init__(self, company_name="iCare Life"):
         self.generator = TallyXMLGenerator(company_name)
+        
+    def export_vouchers(self, db_vouchers: List[Dict], output_path: str) -> str:
+        return self.generator.generate_xml(db_vouchers, output_path)

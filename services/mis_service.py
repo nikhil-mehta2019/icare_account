@@ -1,39 +1,46 @@
-"""MIS Service - Handles Management Information System report generation."""
+"""MIS Service - Handles Management Information System report generation via PostgreSQL."""
 
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 import os
 import pandas as pd
 
-# Import models
-from models.voucher import Voucher
-from models.debit_voucher import JournalVoucher, PurchaseVoucher, PayrollVoucher, DebitVoucherType
+from services.data_provider import DataProvider
 
 class MISService:
     """
     Handles generation of Management Accounting reports.
-    Preserves logic for both legacy Account Code checks and new Ledger Name matching.
+    Strictly queries PostgreSQL for aggregated data.
     """
     
-    def __init__(self, data_service):
-        self.data_service = data_service
+    def __init__(self):
+        self.db = DataProvider.get_service()
         
         # segments configuration
         self.segments = ['Retail', 'Kenya', 'India', 'Corporate', 'Placement']
         
-        # Ledger keywords for classification (Restoring logic for text-based matching)
+        # Ledger keywords for classification
         self.revenue_keywords = ['sales', 'income', 'revenue', 'fees']
         self.direct_cost_keywords = ['purchase', 'cost of goods', 'direct', 'wages', 'salary', 'freight']
         self.indirect_cost_keywords = ['rent', 'electricity', 'internet', 'audit', 'legal', 'office']
 
-    def calculate_mis(self, vouchers: List[any],
-                     start_date: datetime = None,
-                     end_date: datetime = None) -> Dict:
+    def calculate_mis(self, start_date: datetime, end_date: datetime) -> Dict:
         """
-        Calculate MIS report data with segment-wise breakdown.
+        Query DB and calculate MIS report data with segment-wise breakdown.
         """
-        # 1. Filter Vouchers
-        filtered_vouchers = self._filter_by_date(vouchers, start_date, end_date)
+        # 1. Fetch Flat Data from PostgreSQL
+        query = """
+            SELECT 
+                COALESCE(v.segment, 'Unknown') as segment,
+                h.name as ledger_name,
+                v.voucher_type,
+                v.amount
+            FROM vouchers v
+            LEFT JOIN master_account_heads h ON v.account_code = h.code
+            WHERE v.voucher_date >= %s AND v.voucher_date <= %s
+              AND v.status != 'Deleted'
+        """
+        rows = self.db.execute_read(query, (start_date, end_date))
         
         # 2. Initialize Report Structure
         result = {
@@ -41,43 +48,45 @@ class MISService:
                 'start': start_date.isoformat() if start_date else None,
                 'end': end_date.isoformat() if end_date else None
             },
-            'segments': {},
-            'total': {}
+            'segments': {seg: self._get_empty_metrics() for seg in self.segments},
+            'total': self._get_empty_metrics()
         }
         
-        # 3. Initialize Metric Counters
-        metric_keys = [
-            'gmv', 'returns', 'net_revenue', 
-            'direct_costs', 'allocated_costs', 
-            'total_variable_cost', 'gross_profit'
-        ]
-        
-        # Company-wide totals
-        total_metrics = {k: 0.0 for k in metric_keys}
-
-        # 4. Process Each Segment
-        for segment in self.segments:
-            # Calculate metrics for this specific segment
-            metrics = self._calculate_segment_metrics(filtered_vouchers, segment)
-            result['segments'][segment] = metrics
+        # 3. Process Rows
+        for row in rows:
+            segment = str(row['segment']).strip().title()
             
-            # Add to company totals
-            for key in metric_keys:
-                total_metrics[key] += metrics.get(key, 0.0)
-        
-        # 5. Calculate Final Margins
-        self._calculate_margin(total_metrics)
-        result['total'] = total_metrics
-        
+            # Group unknown or missing segments into Corporate as fallback, or map dynamically
+            if segment not in result['segments']:
+                if segment not in self.segments:
+                     segment = 'Corporate' # Default bucket
+            
+            metrics = result['segments'][segment]
+            
+            amt = float(row['amount'] or 0.0)
+            ledger_name = str(row['ledger_name'] or '').lower()
+            v_type = str(row['voucher_type'] or '').upper()
+
+            # Classification Logic
+            if self._is_revenue(ledger_name) or v_type in ['RECEIPT', 'CREDIT']:
+                metrics['gmv'] += amt
+                result['total']['gmv'] += amt
+            elif self._is_direct_cost(ledger_name) or v_type in ['PAYMENT', 'PURCHASE', 'PAYROLL', 'DEBIT']:
+                metrics['direct_costs'] += amt
+                result['total']['direct_costs'] += amt
+
+        # 4. Calculate Derived Metrics (Margins & Profits)
+        self._calculate_derived_metrics(result['total'])
+        for seg in self.segments:
+            self._calculate_derived_metrics(result['segments'][seg])
+            
         return result
 
-    def get_gross_profit_summary(self, vouchers: List[any],
-                                start_date: datetime = None,
-                                end_date: datetime = None) -> Dict:
+    def get_gross_profit_summary(self, start_date: datetime, end_date: datetime) -> Dict:
         """
         Get a simplified gross profit summary for dashboards.
         """
-        mis_data = self.calculate_mis(vouchers, start_date, end_date)
+        mis_data = self.calculate_mis(start_date, end_date)
         return {
             'total_revenue': mis_data['total']['net_revenue'],
             'total_costs': mis_data['total']['total_variable_cost'],
@@ -85,125 +94,29 @@ class MISService:
             'gross_margin': mis_data['total']['gross_margin']
         }
 
-    def _get_val(self, obj, attr, default=None):
-        """Safe accessor for Dict or Object."""
-        if isinstance(obj, dict):
-            return obj.get(attr, default)
-        return getattr(obj, attr, default)
-
-    def _calculate_segment_metrics(self, vouchers: List[any], segment: str) -> Dict:
-        """Calculate metrics for a specific segment."""
-        metrics = {
+    def _get_empty_metrics(self) -> Dict[str, float]:
+        return {
             'gmv': 0.0, 'returns': 0.0, 'net_revenue': 0.0,
             'direct_costs': 0.0, 'allocated_costs': 0.0,
             'total_variable_cost': 0.0, 'gross_profit': 0.0, 'gross_margin': 0.0
         }
 
-        target_segment = segment.lower().strip()
-
-        for v in vouchers:
-            # ---------------------------------------------------------
-            # LOGIC TYPE A: New Journal Vouchers (Entries list)
-            # ---------------------------------------------------------
-            entries = self._get_val(v, 'entries')
-            if entries:
-                for entry in entries:
-                    # Safe access for Entry (could be dict or obj)
-                    subcode = self._get_val(entry, 'subcode', '')
-                    if subcode and str(subcode).lower().strip() == target_segment:
-                        ledger = self._get_val(entry, 'ledger', '')
-                        cr = float(self._get_val(entry, 'credit_amount', 0))
-                        dr = float(self._get_val(entry, 'debit_amount', 0))
-
-                        # Logic: classify based on Ledger Name keywords or Debit/Credit
-                        if self._is_revenue(ledger, is_credit=True):
-                            metrics['gmv'] += cr
-                        elif self._is_direct_cost(ledger, is_debit=True):
-                            metrics['direct_costs'] += dr
-                        
-                        # Fallback
-                        elif cr > 0: metrics['gmv'] += cr
-                        elif dr > 0: metrics['direct_costs'] += dr
-
-            # ---------------------------------------------------------
-            # LOGIC TYPE B: New Purchase Vouchers (Business Unit)
-            # ---------------------------------------------------------
-            bu = self._get_val(v, 'business_unit')
-            if bu and str(bu).lower().strip() == target_segment:
-                exp_ledger = self._get_val(v, 'expense_ledger', '')
-                base_amt = float(self._get_val(v, 'base_amount', 0))
-                
-                if self._is_direct_cost(exp_ledger, is_debit=True):
-                     metrics['direct_costs'] += base_amt
-                else:
-                     metrics['direct_costs'] += base_amt 
-
-            # ---------------------------------------------------------
-            # LOGIC TYPE C: New Payroll Vouchers (Salary Subcode)
-            # ---------------------------------------------------------
-            sc = self._get_val(v, 'salary_subcode')
-            if sc and str(sc).lower().strip() == target_segment:
-                 metrics['direct_costs'] += float(self._get_val(v, 'amount', 0))
-
-            # ---------------------------------------------------------
-            # LOGIC TYPE D: Legacy Vouchers
-            # ---------------------------------------------------------
-            seg = self._get_val(v, 'segment')
-            if seg and str(seg).lower().strip() == target_segment:
-                amt = float(self._get_val(v, 'amount', 0))
-                v_type = str(self._get_val(v, 'voucher_type', '')).lower()
-                acc_name = self._get_val(v, 'account_name', '')
-                
-                if self._is_revenue(acc_name) or 'receipt' in v_type or 'credit' in v_type:
-                    metrics['gmv'] += amt
-                elif self._is_direct_cost(acc_name) or 'payment' in v_type or 'debit' in v_type:
-                     metrics['direct_costs'] += amt
-        
-        # Calculate Derived Metrics
+    def _calculate_derived_metrics(self, metrics: Dict):
+        """Calculate Net Revenue, Total Costs, and Margins in-place."""
         metrics['net_revenue'] = metrics['gmv'] - metrics['returns']
         metrics['total_variable_cost'] = metrics['direct_costs'] + metrics['allocated_costs']
         metrics['gross_profit'] = metrics['net_revenue'] - metrics['total_variable_cost']
-        self._calculate_margin(metrics)
         
-        return metrics
-
-    def _is_revenue(self, ledger_name: str, is_credit: bool = False) -> bool:
-        name = str(ledger_name).lower()
-        if any(k in name for k in self.revenue_keywords): return True
-        return False
-
-    def _is_direct_cost(self, ledger_name: str, is_debit: bool = False) -> bool:
-        name = str(ledger_name).lower()
-        if any(k in name for k in self.direct_cost_keywords): return True
-        return True 
-
-    def _calculate_margin(self, metrics: Dict):
         if metrics['net_revenue'] > 0:
             metrics['gross_margin'] = (metrics['gross_profit'] / metrics['net_revenue']) * 100
         else:
             metrics['gross_margin'] = 0.0
 
-    def _filter_by_date(self, vouchers: List[any], start: datetime, end: datetime) -> List[any]:
-        if not start and not end: return vouchers
-        filtered = []
-        for v in vouchers:
-            # Safe date access
-            d = self._get_val(v, 'voucher_date') or self._get_val(v, 'date')
-            if not d: continue
-            
-            if isinstance(d, str):
-                try: d = datetime.strptime(d, "%Y-%m-%d").date()
-                except: continue
-            elif isinstance(d, datetime):
-                d = d.date()
-            
-            s = start.date() if isinstance(start, datetime) else start
-            e = end.date() if isinstance(end, datetime) else end
-            
-            if s and d < s: continue
-            if e and d > e: continue
-            filtered.append(v)
-        return filtered
+    def _is_revenue(self, ledger_name: str) -> bool:
+        return any(k in ledger_name for k in self.revenue_keywords)
+
+    def _is_direct_cost(self, ledger_name: str) -> bool:
+        return any(k in ledger_name for k in self.direct_cost_keywords)
 
     def export_mis_excel(self, mis_data: Dict, output_path: str) -> str:
         try:
@@ -238,7 +151,7 @@ class MISService:
                 ('Allocated Shared Costs (Pool)', 'allocated_costs', currency_fmt),
                 ('Total Variable Cost (B)', 'total_variable_cost', currency_fmt),
                 ('GROSS PROFIT (A - B)', 'gross_profit', currency_fmt),
-                ('Gross Margin %', 'gross_margin', percent_format)
+                ('Gross Margin %', 'gross_margin', percent_fmt)
             ]
             
             for i, (label, key, fmt) in enumerate(rows_config):
