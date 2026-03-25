@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QDate
 from datetime import datetime
 import os
 
-from services.data_service import DataService
+from services.data_provider import DataProvider
 from services.tally_service import TallyService
 from services.mis_service import MISService
 from .styles import Styles
@@ -17,9 +17,9 @@ from .styles import Styles
 class ReportsTab(QWidget):
     """Reports generation interface for MIS Excel and Tally XML."""
     
-    def __init__(self, data_service: DataService, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.data_service = data_service
+        self.data_service = DataProvider.get_service()
         
         # FIX: Pass data_service to constructors to satisfy dependency
         self.tally_service = TallyService(self.data_service)

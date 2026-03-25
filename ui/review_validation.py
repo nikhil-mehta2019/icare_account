@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QBrush, QFont
 from datetime import datetime
 
-from services.data_service import DataService
+from services.data_provider import DataProvider
 from .styles import Styles
 
 # --- NEW CLASS: Voucher Detail Pop-up ---
@@ -365,9 +365,9 @@ class ReviewValidationTab(QWidget):
     
     vouchers_approved = Signal(list)
     
-    def __init__(self, data_service: DataService, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.data_service = data_service
+        self.data_service = DataProvider.get_service() 
         self._vouchers = []
         
         self._setup_ui()
@@ -598,16 +598,17 @@ class ReviewValidationTab(QWidget):
             dlg.exec()
 
     def refresh_data(self):
-        """Refresh voucher data from data service."""
+        """Refresh voucher data from PostgreSQL."""
         try:
-            self._vouchers = self.data_service.get_vouchers()
+            # Fetch only the latest 100 vouchers to keep the UI responsive
+            query = "SELECT * FROM vouchers ORDER BY created_at DESC LIMIT 100"
+            self._vouchers = self.data_service.execute_read(query) 
+            
             self._update_table()
             self._update_summary()
             self._validate_vouchers()
         except Exception as e:
             QMessageBox.critical(self, "Data Error", f"Failed to refresh data: {str(e)}")
-            import traceback
-            traceback.print_exc()
     
     def _get_voucher_attr(self, voucher, attr_name, default=None):
         """Helper to get attribute from object or dict."""

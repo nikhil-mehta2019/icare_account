@@ -1,8 +1,11 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from typing import List, Dict, Any
+from psycopg2.extras import execute_values
 from models.financial_year import FinancialYear
 from datetime import datetime
+
+
 
 class DatabaseDataService:
     """Strictly handles raw SQL operations. No JSON compilation."""
@@ -109,3 +112,66 @@ class DatabaseDataService:
                     getattr(voucher.tds, 'amount', 0.0) if hasattr(voucher, 'tds') and voucher.tds else 0.0
                 ))
                 conn.commit()
+    
+    def add_vouchers_bulk(self, vouchers: list) -> int:
+        """
+        High-performance batch insert for bulk imports.
+        Maps list of objects or dicts to the vouchers table.
+        """
+        query = """
+            INSERT INTO vouchers (
+                voucher_id, voucher_no, voucher_type, voucher_date, status, 
+                account_code, segment, amount, narration, reference_id,
+                gst_amount, tds_section, tds_amount, created_at, updated_at
+            ) VALUES %s
+        """
+        
+        values = []
+        for v in vouchers:
+            # Handle both objects (from models) and dictionaries
+            is_dict = isinstance(v, dict)
+            
+            # Helper to get attributes/keys safely
+            def get_val(obj, key, default=None):
+                if is_dict: return obj.get(key, default)
+                return getattr(obj, key, default)
+
+            # Handle nested GST/TDS logic
+            gst = get_val(v, 'gst')
+            tds = get_val(v, 'tds')
+            
+            values.append((
+                get_val(v, 'voucher_id') or get_val(v, 'reference_id', 'BULK-IMPORT'),
+                get_val(v, 'voucher_no'),
+                str(get_val(v, 'voucher_type', 'DEBIT')).split('.')[-1],
+                get_val(v, 'date') or get_val(v, 'voucher_date'),
+                get_val(v, 'status', 'Imported'),
+                get_val(v, 'account_code'),
+                get_val(v, 'segment'),
+                get_val(v, 'amount', 0.0),
+                get_val(v, 'narration', ''),
+                get_val(v, 'reference_id'),
+                getattr(gst, 'total_amount', 0.0) if hasattr(gst, 'total_amount') else 0.0,
+                getattr(tds, 'section', None) if hasattr(tds, 'section') else None,
+                getattr(tds, 'amount', 0.0) if hasattr(tds, 'amount') else 0.0,
+                datetime.now(),
+                datetime.now()
+            ))
+
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                execute_values(cur, query, values, page_size=1000)
+                conn.commit()
+                return len(values)
+
+
+    def delete_voucher(self, voucher_no: str):
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM vouchers WHERE voucher_no = %s", (voucher_no,))
+                conn.commit()
+
+    def get_vouchers_by_date_range(self, start_date, end_date):
+        """Fetch vouchers within a specific date range from SQL."""
+        query = "SELECT * FROM vouchers WHERE voucher_date BETWEEN %s AND %s ORDER BY voucher_date ASC"
+        return self.execute_read(query, (start_date, end_date))

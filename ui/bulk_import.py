@@ -10,10 +10,9 @@ from PySide6.QtCore import Qt, Signal, QDate
 from datetime import datetime, time
 import os
 import math
-
+from services.data_provider import DataProvider
 from services.debit_voucher_service import DebitVoucherImportService
 from services.import_service import ImportService
-from services.data_service import DataService
 from services.voucher_config_service import get_voucher_config
 from models.import_result import ImportResult, ImportStatus
 from .styles import Styles
@@ -26,9 +25,9 @@ class BulkImportTab(QWidget):
 
     import_completed = Signal(ImportResult)
 
-    def __init__(self, data_service: DataService, parent=None):
+    def __init__(self, parent=None): # Remove data_service from arguments
         super().__init__(parent)
-        self.data_service = data_service
+        self.data_service = DataProvider.get_service() # Get the Database Service
         self.config = get_voucher_config()
         
         # Services
@@ -484,3 +483,32 @@ class BulkImportTab(QWidget):
         self.file_label.setText("No file selected")
         self.file_label.setStyleSheet(f"color: {Styles.TEXT_MUTED}; font-style: italic;")
         self.preview_table.setRowCount(0)
+
+    def _on_import_clicked(self):
+        if not self._vouchers: return
+
+        reply = QMessageBox.question(self, "Confirm", f"Import {len(self._vouchers)} entries to PostgreSQL?", 
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            try:
+                # 1. Handle sequences for sales mode
+                if self.import_mode == "sales":
+                    prefix = self.prefix_input.text().strip() or "CR-SAL"
+                    seq_num = int(self.start_seq_input.text() or "1")
+                    for v in self._vouchers:
+                        v_no = f"{prefix}-{seq_num:04d}"
+                        v.voucher_no = v_no
+                        v.reference_id = v_no
+                        seq_num += 1
+
+                # 2. Save directly to DB using the high-performance bulk method
+                count = self.data_service.add_vouchers_bulk(self._vouchers)
+                
+                if self._import_result:
+                    self._import_result.complete(ImportStatus.COMPLETED)
+                    self.import_completed.emit(self._import_result)
+
+                QMessageBox.information(self, "Success", f"Successfully imported {count} entries to Database.")
+                self._clear()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Database Save failed: {str(e)}")
