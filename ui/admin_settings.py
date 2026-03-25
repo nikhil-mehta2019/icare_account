@@ -17,8 +17,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from datetime import datetime
+from services.data_provider import DataProvider
 
-from services.data_service import DataService
 from services.voucher_config_service import get_voucher_config
 from .styles import Styles
 

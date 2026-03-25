@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from models.master_data import MasterData
-from services.data_service import DataService
+from services.data_provider import DataProvider
 from services.path_utils import ensure_persistent_file
 
 def get_persistent_path(filename):
@@ -84,7 +84,7 @@ class VoucherConfigService:
         self._config: Dict = {}
         self._loaded = False
         self.master_data = None
-        self.data_service = DataService()
+        self.data_service = DataProvider.get_service()
         # Point straight to persistent file (copies default from PyInstaller bundle on first run)
         self.config_path = ensure_persistent_file('voucher_config.json', 'data/voucher_config.json')
         self.load_config()
@@ -503,20 +503,29 @@ class VoucherConfigService:
     # ============ MASTER DATA MANAGEMENT ============
     
     def save_config(self) -> bool:
-        """Save current configuration to JSON file."""
-       # Save both to local config file AND via DataService
+        """Save current configuration to PostgreSQL database or JSON fallback."""
         try:
             self._config["lastModified"] = datetime.now().strftime("%Y-%m-%d")
-            # Update master_data object from _config dict
+            
+            # 1. Save Master Data (like Vendors and Segments)
             if self.master_data:
-                # Basic sync - for full robustness update individual fields
                 self.data_service.save_master_data()
             
-            with open(self.CONFIG_PATH, 'w', encoding='utf-8') as f:
-                json.dump(self._config, f, indent=2, ensure_ascii=False)
+            # 2. Save Config Data (Tally Heads, Countries, Products, etc.)
+            # Check if we are using the new Database service
+            if hasattr(self.data_service, 'save_voucher_config'):
+                self.data_service.save_voucher_config(self._config)
+            else:
+                # Fallback: Save to JSON if running in legacy mode (USE_CENTRAL_DB=false)
+                with open(self.CONFIG_PATH, 'w', encoding='utf-8') as f:
+                    json.dump(self._config, f, indent=2, ensure_ascii=False)
+                    
             return True
+            
         except Exception as e:
             print(f"Error saving config: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_all_tally_heads_raw(self) -> List[Dict]:

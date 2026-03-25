@@ -9,14 +9,14 @@ from PySide6.QtGui import QFont, QIcon, QPixmap
 from datetime import datetime
 import os
 
-from services.data_service import DataService
+#from services.data_service import DataService
+from services.data_provider import DataProvider
 from .styles import Styles
 from .voucher_entry import VoucherEntryTab
 from .bulk_import import BulkImportTab
 from .review_validation import ReviewValidationTab
 from .reports import ReportsTab
 from .admin_settings import AdminSettingsTab
-
 
 class MainWindow(QMainWindow):
     """Main application window with tab-based navigation."""
@@ -25,7 +25,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         # Initialize data service
-        self.data_service = DataService()
+        #self.data_service = DataService()
+        self.data_service = DataProvider.get_service()
         
         # Setup window
         self.setWindowTitle("iCare Life - Accounting System")
