@@ -63,11 +63,11 @@ class MainWindow(QMainWindow):
         self.tab_widget.setDocumentMode(True)
         
         # Create tabs
-        self.voucher_tab = VoucherEntryTab(self.data_service)
-        self.import_tab = BulkImportTab(self.data_service)
-        self.review_tab = ReviewValidationTab(self.data_service)
-        self.reports_tab = ReportsTab(self.data_service)
-        self.admin_tab = AdminSettingsTab(self.data_service)
+        self.voucher_tab = VoucherEntryTab(self)
+        self.import_tab = BulkImportTab(self)
+        self.review_tab = ReviewValidationTab(self)
+        self.reports_tab = ReportsTab(self)
+        self.admin_tab = AdminSettingsTab(self)
         
         # Add tabs
         self.tab_widget.addTab(self.voucher_tab, "Voucher Entry")

@@ -16,7 +16,8 @@ from services.import_service import ImportService
 from services.voucher_config_service import get_voucher_config
 from models.import_result import ImportResult, ImportStatus
 from .styles import Styles
-
+from services.database_data_service import DatabaseDataService
+from services.validation_service import ValidationService
 
 class BulkImportTab(QWidget):
     """
@@ -462,6 +463,18 @@ class BulkImportTab(QWidget):
 
                 # Convert and Save
                 vouchers_payload = [v.to_dict() if hasattr(v, 'to_dict') else v for v in self._vouchers]
+                # 👉 1. INITIALIZE VALIDATION SERVICE
+                validator = ValidationService(self.data_service)
+                
+                # 👉 2. VALIDATE THE ENTIRE BATCH BEFORE SAVING
+                for index, voucher_dict in enumerate(vouchers_payload):
+                    try:
+                        validator.validate_voucher_classification(voucher_dict, is_bulk=True)
+                    except ValueError as e:
+                        # If even ONE row fails, abort the entire import
+                        raise ValueError(f"Validation Error at Row {index + 1}:\n{str(e)}")
+
+                # 👉 3. SAVE TO POSTGRESQL (Only executes if the whole loop passes)
                 self.data_service.add_vouchers_bulk(vouchers_payload)
                 
                 if self._import_result:
@@ -472,7 +485,13 @@ class BulkImportTab(QWidget):
                 QMessageBox.information(self, "Success", f"{mode_str} entries imported securely.")
                 self._clear()
                 
+            except ValueError as e:
+                # 👉 CATCH OUR VALIDATION ERROR SPECIFICALLY
+                QMessageBox.warning(self, "Import Blocked", str(e))
+                # Do NOT clear the form so the user can fix the issue and try again
+                
             except Exception as e:
+                # Catch actual DB crashes
                 QMessageBox.critical(self, "Import Error", f"Failed to save vouchers: {str(e)}")
 
     def _clear(self):

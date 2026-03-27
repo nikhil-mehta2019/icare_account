@@ -23,7 +23,7 @@ class ReportsTab(QWidget):
         
         # FIX: Pass data_service to constructors to satisfy dependency
         self.tally_service = TallyService(self.data_service)
-        self.mis_service = MISService(self.data_service)
+        self.mis_service = MISService()
         
         self._setup_ui()
         self._connect_signals()

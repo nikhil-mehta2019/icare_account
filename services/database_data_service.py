@@ -54,18 +54,30 @@ class DatabaseDataService:
         return row['count'] if row else 0
 
     def generate_next_voucher_sequence(self, voucher_type: str, product_code: str, date_obj: datetime = None) -> str:
-        """Generate generic voucher sequence dynamically based on Financial Year."""
+        """Atomic, FY-aware sequence generation natively in PostgreSQL."""
         if date_obj is None:
             date_obj = datetime.now()
             
         fy = FinancialYear.from_date(date_obj)
+        v_type = voucher_type.upper()
+        p_code = product_code.upper()[:3] if product_code else 'GEN'
+        
+        query = """
+            INSERT INTO voucher_sequences (voucher_type, product_code, financial_year, current_value)
+            VALUES (%s, %s, %s, 1)
+            ON CONFLICT (voucher_type, product_code, financial_year)
+            DO UPDATE SET current_value = voucher_sequences.current_value + 1
+            RETURNING current_value;
+        """
         
         with self._get_connection() as conn:
             with conn.cursor() as cur:
-                seq_name = f"seq_{voucher_type}_{product_code}".lower()
-                cur.execute(f"SELECT nextval('{seq_name}')")
-                next_val = cur.fetchone()['nextval']
-                return f"DB-{product_code[:3].upper()}-{fy.code}-{next_val:04d}"
+                cur.execute(query, (v_type, p_code, fy.code))
+                next_val = cur.fetchone()['current_value']
+                conn.commit()
+                
+                # Format: DB-PRO-2024-25-0001
+                return f"DB-{p_code}-{fy.code}-{next_val:04d}"
 
     def generate_credit_sale_code(self, date_obj: datetime) -> str:
         """Generate sequential code for sales dynamically based on Financial Year."""
@@ -175,3 +187,66 @@ class DatabaseDataService:
         """Fetch vouchers within a specific date range from SQL."""
         query = "SELECT * FROM vouchers WHERE voucher_date BETWEEN %s AND %s ORDER BY voucher_date ASC"
         return self.execute_read(query, (start_date, end_date))
+
+    def update_voucher(self, voucher) -> bool:
+        """Fully PostgreSQL-driven update. Overwrites existing voucher details."""
+        query = """
+            UPDATE vouchers 
+            SET 
+                voucher_date = %s, status = %s, account_code = %s, segment = %s, 
+                amount = %s, narration = %s, reference_id = %s,
+                gst_amount = %s, cgst_amount = %s, sgst_amount = %s, igst_amount = %s, gst_rate = %s,
+                tds_section = %s, tds_amount = %s, tds_rate = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE voucher_id = %s OR voucher_no = %s;
+        """
+        
+        # Helper to safely extract properties from objects or dicts
+        is_dict = isinstance(voucher, dict)
+        def get_val(key, default=None):
+            return voucher.get(key, default) if is_dict else getattr(voucher, key, default)
+
+        # Extract nested tax data if it exists
+        gst = get_val('gst')
+        tds = get_val('tds')
+        vid = get_val('voucher_id')
+        vno = get_val('voucher_no')
+        
+        if not vid and not vno:
+            raise ValueError("Cannot update voucher: Missing both voucher_id and voucher_no")
+
+        values = (
+            get_val('date') or get_val('voucher_date'),
+            get_val('status', 'Saved'),
+            get_val('account_code'),
+            get_val('segment'),
+            get_val('amount', 0.0),
+            get_val('narration', ''),
+            get_val('reference_id'),
+            getattr(gst, 'total_amount', 0.0) if gst else 0.0,
+            getattr(gst, 'cgst_amount', 0.0) if gst else 0.0,
+            getattr(gst, 'sgst_amount', 0.0) if gst else 0.0,
+            getattr(gst, 'igst_amount', 0.0) if gst else 0.0,
+            getattr(gst, 'rate', 0.0) if gst else 0.0,
+            getattr(tds, 'section', None) if tds else None,
+            getattr(tds, 'amount', 0.0) if tds else 0.0,
+            getattr(tds, 'rate', 0.0) if tds else 0.0,
+            vid, vno
+        )
+
+        with self._get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, values)
+                rows_updated = cur.rowcount
+                conn.commit()
+                return rows_updated > 0
+
+    def get_vouchers_by_status(self, status: str) -> List[Dict]:
+        """Fetch vouchers natively filtered by status."""
+        query = "SELECT * FROM vouchers WHERE status = %s ORDER BY voucher_date DESC"
+        return self.execute_read(query, (status,))
+
+    def get_vouchers_by_segment(self, segment: str) -> List[Dict]:
+        """Fetch vouchers natively filtered by segment."""
+        query = "SELECT * FROM vouchers WHERE segment = %s ORDER BY voucher_date DESC"
+        return self.execute_read(query, (segment,))

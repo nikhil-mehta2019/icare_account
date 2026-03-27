@@ -20,7 +20,8 @@ from models.account_head import VoucherType
 from services.data_provider import DataProvider
 from services.voucher_config_service import get_voucher_config
 from .styles import Styles
-
+from services.database_data_service import DatabaseDataService
+from services.validation_service import ValidationService
 
 class StepHeader(QFrame):
     """Step header widget with number, title, and status."""
@@ -125,9 +126,9 @@ class VoucherEntryTab(QWidget):
     
     voucher_saved = Signal(Voucher)
     
-    def __init__(self, data_service: DataService, parent=None):
+    def __init__(self,  parent=None):
         super().__init__(parent)
-        self.data_service = data_service
+        self.data_service = DataProvider.get_service()
         self.config = get_voucher_config()
         
         self._current_step = 1
@@ -2024,7 +2025,16 @@ class VoucherEntryTab(QWidget):
                 v.tds.ledger_name = self.tds_ledger_combo.currentText()
             # ========================================
             
-            self.data_service.add_voucher(v)
+            # 👉 1. INITIALIZE DB & VALIDATION SERVICES
+            db_service = DatabaseDataService()
+            validator = ValidationService(db_service)
+            
+            # 👉 2. RUN STRICT RULE CHECK (Will jump to except block if B2C)
+            validator.validate_voucher_classification(v, is_bulk=False)
+            
+            # 👉 3. SAVE USING POSTGRESQL DIRECTLY
+            db_service.add_voucher(v)
+            
             QMessageBox.information(self, "Success", "Voucher saved successfully!")
             self.voucher_saved.emit(v)
             self._reset_form()
@@ -2032,6 +2042,9 @@ class VoucherEntryTab(QWidget):
                 self.revenue_details_row.setVisible(True)
             else:
                 self.revenue_details_row.setVisible(False)
+            
+        except ValueError as e:
+            QMessageBox.warning(self, "Validation Blocked", str(e))
             
         except TypeError as e:
             QMessageBox.critical(self, "System Error", f"Model Mismatch: {str(e)}\nPlease check models/voucher.py")
@@ -2079,15 +2092,15 @@ class VoucherEntryTab(QWidget):
         self._reset_form()
 
         
-    def _populate_vendors(self):
-        """Populate Vendor dropdown from Master Data."""
-        self.vendor_combo.clear()
-        self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
+    # def _populate_vendors(self):
+    #     """Populate Vendor dropdown from Master Data."""
+    #     self.vendor_combo.clear()
+    #     self.vendor_combo.addItem("-- Select or Enter Vendor Name --", None)
         
-        # Load from Config Service
-        vendors = self.config.get_all_vendors()
-        for v in vendors:
-            self.vendor_combo.addItem(v['name'], v['name'])
+    #     # Load from Config Service
+    #     vendors = self.config.get_all_vendors()
+    #     for v in vendors:
+    #         self.vendor_combo.addItem(v['name'], v['name'])
 
 
     def showEvent(self, event):

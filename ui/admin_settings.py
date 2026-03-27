@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox, QComboBox, QFormLayout, QDialog, QDialogButtonBox,
     QSpinBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSettings
 from datetime import datetime
 from services.data_provider import DataProvider
 
@@ -113,15 +113,16 @@ class AdminSettingsTab(QWidget):
     # Default admin password
     DEFAULT_PASSWORD = "Subudhi123"
     
-    def __init__(self, data_service: DataService, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.data_service = data_service
+        self.data_service = DataProvider.get_service()
         self.config = get_voucher_config()
         self._is_authenticated = False
         
         self._setup_ui()
         self._connect_signals()
         self._update_ui_state()
+        self._refresh_all_tables()
     
     def _setup_ui(self):
         """Set up the user interface."""
@@ -709,8 +710,8 @@ class AdminSettingsTab(QWidget):
             self.password_input.setVisible(False)
             self.settings_tabs.setEnabled(True)
             
-            # Refresh all tables
-            self._refresh_all_tables()
+            # # Refresh all tables
+            # self._refresh_all_tables()
         else:
             self.lock_status.setText("LOCKED")
             self.lock_status.setStyleSheet(f"""
@@ -1313,11 +1314,13 @@ class AdminSettingsTab(QWidget):
         info.setWordWrap(True)
         layout.addWidget(info)
         
-        master = self.data_service.get_master_data()
+        # 👉 USE QSETTINGS FOR LOCAL PATHS INSTEAD OF DB
+        settings = QSettings("iCare", "AccountApp")
         
         # 1. Enable Checkbox
         self.backup_enable_chk = QCheckBox("Enable Automatic Backups")
-        self.backup_enable_chk.setChecked(getattr(master.settings, 'auto_backup_enabled', True))
+        is_enabled = settings.value("auto_backup_enabled", True, type=bool)
+        self.backup_enable_chk.setChecked(is_enabled)
         self.backup_enable_chk.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {Styles.PRIMARY};")
         layout.addWidget(self.backup_enable_chk)
         
@@ -1329,7 +1332,7 @@ class AdminSettingsTab(QWidget):
         
         self.backup_dir_input = QLineEdit()
         self.backup_dir_input.setPlaceholderText("Default: [Local App Data]/iCareAccount/backups")
-        self.backup_dir_input.setText(getattr(master.settings, 'backup_directory', ''))
+        self.backup_dir_input.setText(settings.value("backup_directory", "", type=str))
         self.backup_dir_input.setReadOnly(True)
         self.backup_dir_input.setMinimumHeight(32)
         dir_layout.addWidget(self.backup_dir_input)
@@ -1364,7 +1367,7 @@ class AdminSettingsTab(QWidget):
         
         self.backup_retention_spin = QSpinBox()
         self.backup_retention_spin.setRange(1, 365)
-        self.backup_retention_spin.setValue(getattr(master.settings, 'backup_retention_days', 5))
+        self.backup_retention_spin.setValue(settings.value("backup_retention_days", 5, type=int))
         self.backup_retention_spin.setMinimumHeight(30)
         
         retention_row.addWidget(retention_label)
@@ -1409,7 +1412,7 @@ class AdminSettingsTab(QWidget):
             self.backup_dir_input.setText(os.path.normpath(dir_path))
             
     def _save_backup_settings(self):
-        """Save the backup configuration to Master Data."""
+        """Save the backup configuration using QSettings."""
         b_dir = self.backup_dir_input.text().strip()
         
         # Validate Directory if provided
@@ -1426,11 +1429,11 @@ class AdminSettingsTab(QWidget):
                 return
 
         try:
-            master = self.data_service.get_master_data()
-            master.settings.auto_backup_enabled = self.backup_enable_chk.isChecked()
-            master.settings.backup_directory = b_dir
-            master.settings.backup_retention_days = self.backup_retention_spin.value()
-            self.data_service.save_master_data()
+            # 👉 SAVE DIRECTLY TO WINDOWS/MAC LOCAL APP REGISTRY
+            settings = QSettings("iCare", "AccountApp")
+            settings.setValue("auto_backup_enabled", self.backup_enable_chk.isChecked())
+            settings.setValue("backup_directory", b_dir)
+            settings.setValue("backup_retention_days", self.backup_retention_spin.value())
             
             QMessageBox.information(self, "Success", "Backup configuration updated and applied successfully!")
             self.settings_changed.emit()
